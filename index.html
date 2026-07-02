@@ -1,0 +1,1285 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PixelEncoder v6.6 - Post-Quantum Web Edition</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'ui-sans-serif', system-ui, sans-serif;
+        }
+        .font-mono-custom {
+            font-family: 'JetBrains Mono', monospace;
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col selection:bg-emerald-500/30 selection:text-emerald-300">
+
+    <!-- HEADER -->
+    <header class="border-b border-slate-900 bg-slate-900/40 backdrop-blur-md sticky top-0 z-50">
+        <div class="max-w-6xl mx-auto px-4 py-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div class="flex items-center space-x-3">
+                <div class="p-2 bg-emerald-500/10 border border-emerald-500/30 rounded-lg text-emerald-400">
+                    <svg class="w-6 h-6 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold tracking-tight text-white flex items-center gap-2">
+                        PixelEncoder <span class="text-xs bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded">v6.6.0-Web</span>
+                    </h1>
+                    <p class="text-xs text-slate-400">Post-Quantum Cryptography & LSB Steganography (ML-KEM-768 / AES-GCM)</p>
+                </div>
+            </div>
+            <div class="flex items-center space-x-2 text-xs bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-full">
+                <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
+                <span class="text-slate-300 font-medium">Безопасная локальная среда (WebCrypto)</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN CONTENT -->
+    <main class="flex-grow max-w-6xl w-full mx-auto px-4 py-8 flex flex-col gap-8">
+        
+        <!-- INTRO PANEL -->
+        <div class="bg-gradient-to-r from-emerald-950/20 to-sky-950/20 border border-slate-900 p-6 rounded-2xl relative overflow-hidden">
+            <div class="absolute -right-10 -bottom-10 w-40 h-40 bg-emerald-500/5 rounded-full blur-2xl"></div>
+            <h2 class="text-base font-semibold text-white mb-2">О веб-версии</h2>
+            <p class="text-sm text-slate-300 leading-relaxed max-w-4xl">
+                Эта утилита является клиентским аналогом консольной версии на Python. Все криптографические операции выполняются 
+                <span class="text-emerald-400 font-semibold">исключительно внутри вашего браузера</span>. Ваши файлы, сообщения и ключи 
+                никогда не передаются на сервер. Полная совместимость: файлы <code class="bg-slate-900 px-1.5 py-0.5 rounded text-sky-400">.enc</code> 
+                и <code class="bg-slate-900 px-1.5 py-0.5 rounded text-sky-400">.png</code> (стего-карты) можно свободно шифровать в вебе и расшифровывать на ПК, и наоборот.
+            </p>
+        </div>
+
+        <!-- TABS NAV -->
+        <div class="flex border-b border-slate-900 gap-2">
+            <button onclick="switchTab('encrypt-tab')" id="btn-encrypt-tab" class="tab-btn px-4 py-2.5 text-sm font-medium border-b-2 border-emerald-500 text-emerald-400 transition-all">
+                🔐 Шифрование (Encode)
+            </button>
+            <button onclick="switchTab('decrypt-tab')" id="btn-decrypt-tab" class="tab-btn px-4 py-2.5 text-sm font-medium border-b-2 border-transparent text-slate-400 hover:text-slate-200 transition-all">
+                🔓 Дешифрование (Decode)
+            </button>
+            <button onclick="switchTab('keygen-tab')" id="btn-keygen-tab" class="tab-btn px-4 py-2.5 text-sm font-medium border-b-2 border-transparent text-slate-400 hover:text-slate-200 transition-all">
+                🔑 Генерация ключей
+            </button>
+            <button onclick="switchTab('profiles-tab')" id="btn-profiles-tab" class="tab-btn px-4 py-2.5 text-sm font-medium border-b-2 border-transparent text-slate-400 hover:text-slate-200 transition-all">
+                👤 Профили и Контакты
+            </button>
+        </div>
+
+        <!-- PANELS CONTAINER -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            
+            <!-- LEFT AREA: FORMS (2/3 width) -->
+            <div class="lg:col-span-2 space-y-6">
+
+                <!-- ENCRYPT TAB -->
+                <div id="encrypt-tab" class="tab-panel space-y-6">
+                    <div class="bg-slate-900/30 border border-slate-900 p-6 rounded-2xl space-y-4">
+                        <h3 class="text-lg font-semibold text-white">1. Ключ получателя</h3>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-medium text-slate-400 mb-1.5">Выбрать из контактов</label>
+                                <select id="enc-contact-select" onchange="loadContactKey('encrypt')" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-300 focus:outline-none focus:border-emerald-500/50">
+                                    <option value="">-- Выберите контакт --</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-400 mb-1.5">Или загрузить .kyber файл</label>
+                                <input type="file" id="enc-pubkey-file" accept=".kyber" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-300 focus:outline-none file:mr-3 file:py-1 file:px-2 file:rounded-md file:border-0 file:bg-slate-800 file:text-slate-300 hover:file:bg-slate-700 cursor-pointer">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-400 mb-1.5">Публичный ключ (HEX-строка, 1184 байт)</label>
+                            <textarea id="enc-pubkey-hex" placeholder="Вставьте HEX-строку публичного ключа..." class="w-full h-20 bg-slate-950 border border-slate-800 rounded-lg p-3 text-xs font-mono-custom text-slate-300 focus:outline-none focus:border-emerald-500/50 resize-none"></textarea>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-900/30 border border-slate-900 p-6 rounded-2xl space-y-4">
+                        <h3 class="text-lg font-semibold text-white">2. Полезная нагрузка</h3>
+                        <div class="flex gap-4 border-b border-slate-800/60 pb-3">
+                            <label class="inline-flex items-center space-x-2 cursor-pointer">
+                                <input type="radio" name="payload-type" value="text" checked onchange="togglePayloadSource()" class="accent-emerald-500">
+                                <span class="text-sm text-slate-300">Текст</span>
+                            </label>
+                            <label class="inline-flex items-center space-x-2 cursor-pointer">
+                                <input type="radio" name="payload-type" value="file" onchange="togglePayloadSource()" class="accent-emerald-500">
+                                <span class="text-sm text-slate-300">Файл</span>
+                            </label>
+                        </div>
+
+                        <div id="payload-text-container">
+                            <label class="block text-xs font-medium text-slate-400 mb-1.5">Текстовое сообщение</label>
+                            <textarea id="payload-text" placeholder="Введите секретное сообщение..." class="w-full h-32 bg-slate-950 border border-slate-800 rounded-lg p-3 text-sm text-slate-300 focus:outline-none focus:border-emerald-500/50"></textarea>
+                        </div>
+
+                        <div id="payload-file-container" class="hidden">
+                            <label class="block text-xs font-medium text-slate-400 mb-1.5">Выберите файл для шифрования</label>
+                            <input type="file" id="payload-file-input" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-4 text-sm text-slate-300 cursor-pointer">
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-900/30 border border-slate-900 p-6 rounded-2xl space-y-4">
+                        <h3 class="text-lg font-semibold text-white">3. Формат вывода</h3>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <label class="border border-slate-800 p-4 rounded-xl cursor-pointer hover:bg-slate-900/50 flex items-start gap-3 transition">
+                                <input type="radio" name="output-format" value="enc" checked onchange="toggleOutputFormat()" class="mt-1 accent-emerald-500">
+                                <div>
+                                    <span class="block text-sm font-semibold text-white">Файл .enc (Бинарный)</span>
+                                    <span class="block text-xs text-slate-400 mt-1">Оптимальный зашифрованный контейнер. Защита от квантовых дешифраторов.</span>
+                                </div>
+                            </label>
+                            <label class="border border-slate-800 p-4 rounded-xl cursor-pointer hover:bg-slate-900/50 flex items-start gap-3 transition">
+                                <input type="radio" name="output-format" value="png" onchange="toggleOutputFormat()" class="mt-1 accent-emerald-500">
+                                <div>
+                                    <span class="block text-sm font-semibold text-white">Стеганография .png</span>
+                                    <span class="block text-xs text-slate-400 mt-1">Внедрение скрытых данных в пиксели произвольного изображения.</span>
+                                </div>
+                            </label>
+                        </div>
+
+                        <div id="cover-file-container" class="hidden border-t border-slate-800/60 pt-4 space-y-3">
+                            <label class="block text-xs font-medium text-slate-400">Выберите оригинальное изображение-носитель (PNG / JPG)</label>
+                            <input type="file" id="cover-file-input" accept="image/*" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-sm text-slate-300 cursor-pointer">
+                            <div id="cover-preview" class="hidden flex items-center gap-4 p-3 bg-slate-950 rounded-lg border border-slate-800">
+                                <img id="cover-preview-img" class="h-16 w-16 object-cover rounded border border-slate-800">
+                                <div class="text-xs">
+                                    <p id="cover-dimensions" class="text-slate-300 font-medium"></p>
+                                    <p id="cover-capacity" class="text-slate-400 mt-0.5"></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button onclick="handleEncrypt()" class="w-full py-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-semibold text-sm shadow-lg shadow-emerald-950/20 active:scale-[0.99] transition duration-150">
+                        🔒 Зашифровать и скачать результат
+                    </button>
+                </div>
+
+                <!-- DECRYPT TAB -->
+                <div id="decrypt-tab" class="tab-panel hidden space-y-6">
+                    <div class="bg-slate-900/30 border border-slate-900 p-6 rounded-2xl space-y-4">
+                        <h3 class="text-lg font-semibold text-white">1. Входной файл</h3>
+                        <label class="block text-xs font-medium text-slate-400">Перетащите зашифрованный .enc или стего-изображение .png</label>
+                        <input type="file" id="dec-input-file" accept=".enc,.png" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-4 text-sm text-slate-300 cursor-pointer">
+                    </div>
+
+                    <div class="bg-slate-900/30 border border-slate-900 p-6 rounded-2xl space-y-4">
+                        <h3 class="text-lg font-semibold text-white">2. Ключ дешифрования (Ваш приватный ключ)</h3>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-medium text-slate-400 mb-1.5">Использовать ключ из профиля</label>
+                                <button onclick="useProfilePrivateKey()" class="w-full bg-slate-950 border border-slate-800 hover:bg-slate-900 hover:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-300 text-left transition">
+                                    🔑 Вставить мой приватный ключ
+                                </button>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-400 mb-1.5">Или загрузить .kyber файл</label>
+                                <input type="file" id="dec-privkey-file" accept=".kyber" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-300 focus:outline-none file:mr-3 file:py-1 file:px-2 file:rounded-md file:border-0 file:bg-slate-800 file:text-slate-300 hover:file:bg-slate-700 cursor-pointer">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-400 mb-1.5">Приватный ключ (HEX-строка, 2400 байт)</label>
+                            <textarea id="dec-privkey-hex" placeholder="Вставьте HEX-строку приватного ключа..." class="w-full h-24 bg-slate-950 border border-slate-800 rounded-lg p-3 text-xs font-mono-custom text-slate-300 focus:outline-none focus:border-emerald-500/50 resize-none"></textarea>
+                        </div>
+                    </div>
+
+                    <button onclick="handleDecrypt()" class="w-full py-4 rounded-xl bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-500 hover:to-indigo-500 text-white font-semibold text-sm shadow-lg shadow-sky-950/20 active:scale-[0.99] transition duration-150">
+                        🔓 Расшифровать данные
+                    </button>
+
+                    <div id="decrypt-result-box" class="hidden bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
+                        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                            <span class="text-sm font-semibold text-emerald-400">✓ Данные успешно расшифрованы!</span>
+                            <span id="decrypt-meta" class="text-xs text-slate-400"></span>
+                        </div>
+                        <div id="decrypt-text-preview-container" class="hidden">
+                            <label class="block text-xs font-medium text-slate-400 mb-1.5">Расшифрованное сообщение</label>
+                            <textarea id="decrypt-text-preview" readonly class="w-full h-32 bg-slate-950 border border-slate-800 rounded-lg p-3 text-sm text-slate-300 focus:outline-none font-mono-custom"></textarea>
+                        </div>
+                        <div class="flex gap-4">
+                            <button id="btn-download-decrypted" class="flex-grow py-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-sm text-slate-100 font-medium transition">
+                                💾 Скачать файл
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- KEYGEN TAB -->
+                <div id="keygen-tab" class="tab-panel hidden space-y-6">
+                    <div class="bg-slate-900/30 border border-slate-900 p-6 rounded-2xl space-y-4">
+                        <h3 class="text-lg font-semibold text-white">Генератор ключевых пар ML-KEM-768</h3>
+                        <p class="text-xs text-slate-400 leading-relaxed">
+                            Основан на математических решетках (Module Learning with Errors) и стандартизирован институтом NIST (FIPS-203). 
+                            Генерирует публичный ключ размером 1184 байт и приватный ключ размером 2400 байт.
+                        </p>
+                        <button onclick="handleKeyGen()" class="py-2.5 px-5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition active:scale-[0.98]">
+                            ⚙️ Сгенерировать новую пару
+                        </button>
+                    </div>
+
+                    <div id="keygen-results" class="hidden space-y-6 animate-fadeIn">
+                        <div class="bg-slate-900/30 border border-slate-900 p-6 rounded-2xl space-y-4">
+                            <div class="flex items-center justify-between">
+                                <h4 class="text-sm font-semibold text-white">🔓 Публичный ключ (1184 B)</h4>
+                                <div class="flex gap-2">
+                                    <button onclick="copyToClipboard('keygen-pub-hex')" class="px-2 py-1 bg-slate-950 border border-slate-800 rounded hover:bg-slate-900 text-[10px] text-slate-300">Копировать HEX</button>
+                                    <button id="btn-dl-pub" class="px-2 py-1 bg-slate-950 border border-emerald-500/20 rounded hover:bg-emerald-950/20 text-[10px] text-emerald-400">Скачать .kyber</button>
+                                </div>
+                            </div>
+                            <textarea id="keygen-pub-hex" readonly class="w-full h-20 bg-slate-950 border border-slate-800 rounded-lg p-3 text-[10px] font-mono-custom text-slate-400 focus:outline-none resize-none"></textarea>
+                        </div>
+
+                        <div class="bg-slate-900/30 border border-slate-900 p-6 rounded-2xl space-y-4">
+                            <div class="flex items-center justify-between">
+                                <h4 class="text-sm font-semibold text-white">🔐 Приватный ключ (2400 B)</h4>
+                                <div class="flex gap-2">
+                                    <button onclick="copyToClipboard('keygen-priv-hex')" class="px-2 py-1 bg-slate-950 border border-slate-800 rounded hover:bg-slate-900 text-[10px] text-slate-300">Копировать HEX</button>
+                                    <button id="btn-dl-priv" class="px-2 py-1 bg-slate-950 border border-emerald-500/20 rounded hover:bg-emerald-950/20 text-[10px] text-emerald-400">Скачать .kyber</button>
+                                </div>
+                            </div>
+                            <textarea id="keygen-priv-hex" readonly class="w-full h-24 bg-slate-950 border border-slate-800 rounded-lg p-3 text-[10px] font-mono-custom text-slate-400 focus:outline-none resize-none"></textarea>
+                        </div>
+
+                        <div class="bg-slate-900/30 border border-slate-900 p-6 rounded-2xl space-y-4">
+                            <h4 class="text-sm font-semibold text-white">Сохранить в локальный профиль</h4>
+                            <div class="flex flex-col sm:flex-row gap-3">
+                                <input type="text" id="save-profile-name" placeholder="Имя профиля (например, MyKey)" class="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-300 flex-grow focus:outline-none">
+                                <button onclick="saveKeypairToProfile()" class="px-5 py-2 rounded-lg bg-emerald-600/20 border border-emerald-500/30 hover:bg-emerald-600/30 text-emerald-300 text-xs font-semibold transition">
+                                    📥 Записать в профиль
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PROFILES TAB -->
+                <div id="profiles-tab" class="tab-panel hidden space-y-6">
+                    <!-- MY PROFILE CARD -->
+                    <div class="bg-slate-900/30 border border-slate-900 p-6 rounded-2xl space-y-4">
+                        <h3 class="text-lg font-semibold text-white flex items-center gap-2">
+                            <span>👤 Мой профиль</span>
+                        </h3>
+                        <div id="my-profile-empty" class="text-xs text-slate-400">
+                            Профиль не настроен. Вы можете сгенерировать новую пару во вкладке «Генерация ключей» и сохранить ее, либо добавить ключи вручную ниже.
+                        </div>
+                        <div id="my-profile-data" class="hidden space-y-2 text-xs">
+                            <p class="text-slate-300 font-medium">Имя владельца: <span id="my-profile-name" class="text-emerald-400"></span></p>
+                            <p class="text-slate-400 truncate">Публичный ключ (HEX): <span id="my-profile-pub" class="font-mono-custom"></span></p>
+                            <p class="text-slate-400">Приватный ключ: <span class="text-emerald-500 font-semibold">✓ Загружен и сохранен локально</span></p>
+                            <button onclick="clearMyProfile()" class="mt-2 text-xs text-red-400 hover:underline">Очистить и удалить профиль</button>
+                        </div>
+                        
+                        <div id="manual-profile-form" class="border-t border-slate-800/60 pt-4 space-y-3">
+                            <h4 class="text-xs font-semibold text-slate-300">Импортировать свой профиль вручную</h4>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <input type="text" id="manual-my-name" placeholder="Ваше имя" class="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-300 focus:outline-none">
+                                <input type="file" id="manual-my-pubkey" accept=".kyber" class="bg-slate-950 border border-slate-800 rounded-lg px-3 py-1 text-xs text-slate-300 focus:outline-none file:mr-2 file:py-0.5 file:px-1.5 file:bg-slate-800 file:text-slate-300 cursor-pointer">
+                            </div>
+                            <input type="file" id="manual-my-privkey" accept=".kyber" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-300 focus:outline-none file:mr-2 file:py-0.5 file:px-1.5 file:bg-slate-800 file:text-slate-300 cursor-pointer">
+                            <button onclick="saveManualMyProfile()" class="w-full py-2 bg-slate-800 hover:bg-slate-700 text-xs font-medium rounded-lg transition">Импортировать файлы ключей</button>
+                        </div>
+                    </div>
+
+                    <!-- CONTACTS CARD -->
+                    <div class="bg-slate-900/30 border border-slate-900 p-6 rounded-2xl space-y-4">
+                        <h3 class="text-lg font-semibold text-white">📋 Список контактов</h3>
+                        
+                        <!-- Contact Add Form -->
+                        <div class="p-4 bg-slate-950/60 border border-slate-800 rounded-xl space-y-3">
+                            <h4 class="text-xs font-semibold text-slate-300">Добавить новый контакт</h4>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <input type="text" id="add-contact-name" placeholder="Имя получателя" class="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-300 focus:outline-none">
+                                <input type="file" id="add-contact-pubkey-file" accept=".kyber" class="bg-slate-950 border border-slate-800 rounded-lg px-3 py-1 text-xs text-slate-300 focus:outline-none file:mr-2 file:py-0.5 file:px-1.5 file:bg-slate-800 file:text-slate-300 cursor-pointer">
+                            </div>
+                            <textarea id="add-contact-pubkey-hex" placeholder="Или вставьте публичный ключ в HEX..." class="w-full h-16 bg-slate-950 border border-slate-800 rounded-lg p-2 text-[10px] font-mono-custom text-slate-300 focus:outline-none resize-none"></textarea>
+                            <button onclick="addNewContact()" class="w-full py-2 bg-emerald-600/10 border border-emerald-500/20 hover:bg-emerald-600/20 text-emerald-300 text-xs font-semibold rounded-lg transition">Сохранить контакт</button>
+                        </div>
+
+                        <!-- Contacts Table -->
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-xs text-slate-300">
+                                <thead class="text-slate-400 bg-slate-900/50">
+                                    <tr>
+                                        <th class="px-3 py-2">Имя</th>
+                                        <th class="px-3 py-2">Публичный ключ (HEX)</th>
+                                        <th class="px-3 py-2 text-right">Действие</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="contacts-table-body" class="divide-y divide-slate-900">
+                                    <!-- Contacts rows go here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- RIGHT AREA: CONSOLE LOGS (1/3 width) -->
+            <div class="space-y-6">
+                <div class="bg-slate-900/50 border border-slate-900 rounded-2xl p-6 space-y-4 flex flex-col h-[500px]">
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                        <span class="text-sm font-semibold text-white flex items-center gap-1.5">
+                            <span class="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                            Терминал безопасности
+                        </span>
+                        <button onclick="clearLogs()" class="text-[10px] text-slate-400 hover:text-red-400 transition">Очистить</button>
+                    </div>
+                    <div id="console-log" class="flex-grow overflow-y-auto font-mono-custom text-[11px] space-y-2 text-slate-300 select-all pr-2">
+                        <!-- Dynamic logs -->
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="border-t border-slate-900 bg-slate-950/80 py-6 mt-12">
+        <div class="max-w-6xl mx-auto px-4 text-center text-xs text-slate-500">
+            <p>© 2026 PixelEncoder. Локальная квантовая безопасность в вашей браузерной сессии.</p>
+        </div>
+    </footer>
+
+    <!-- LOGIC (ES MODULE) -->
+    <script type="module">
+        import { ml_kem768 } from "https://esm.sh/@noble/post-quantum@0.6.1/ml-kem.js";
+
+        // Constants
+        const FORMAT_VERSION = 6;
+        const MAGIC_HEADER = new Uint8Array([80, 88, 69, 78]); // "PXEN"
+        const KYBER_PK_SIZE = 1184;
+        const KYBER_SK_SIZE = 2400;
+        const KYBER_CT_SIZE = 1088;
+        const NONCE_SIZE = 12;
+
+        // Reactive Application State
+        let state = {
+            myProfile: null,
+            contacts: {},
+            lastDecryptedData: null,
+            lastDecryptedFilename: 'message.txt'
+        };
+
+        // Initialize App
+        window.addEventListener('DOMContentLoaded', () => {
+            addLog("PixelEncoder v6.6 Post-Quantum Web-Edition инициализирован.", "info");
+            loadStateFromStorage();
+            refreshContactsUI();
+            togglePayloadSource();
+            toggleOutputFormat();
+            
+            // File input logic bindings
+            document.getElementById('enc-pubkey-file').addEventListener('change', async (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    try {
+                        const bytes = await readFileAsBytes(file);
+                        if (bytes.length !== KYBER_PK_SIZE) {
+                            addLog(`Ошибка: Ожидаемый размер ключа ${KYBER_PK_SIZE} байт, загружено ${bytes.length} байт.`, 'error');
+                            return;
+                        }
+                        document.getElementById('enc-pubkey-hex').value = bytesToHex(bytes);
+                        addLog("Публичный ключ загружен из файла.", "success");
+                    } catch (err) {
+                        addLog("Не удалось прочитать файл ключа: " + err, "error");
+                    }
+                }
+            });
+
+            document.getElementById('dec-privkey-file').addEventListener('change', async (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    try {
+                        const bytes = await readFileAsBytes(file);
+                        if (bytes.length !== KYBER_SK_SIZE) {
+                            addLog(`Ошибка: Ожидаемый размер ключа ${KYBER_SK_SIZE} байт, загружено ${bytes.length} байт.`, 'error');
+                            return;
+                        }
+                        document.getElementById('dec-privkey-hex').value = bytesToHex(bytes);
+                        addLog("Приватный ключ загружен из файла.", "success");
+                    } catch (err) {
+                        addLog("Не удалось прочитать файл ключа: " + err, "error");
+                    }
+                }
+            });
+
+            document.getElementById('cover-file-input').addEventListener('change', async (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    try {
+                        const img = await loadImageFromFile(file);
+                        const previewImg = document.getElementById('cover-preview-img');
+                        previewImg.src = URL.createObjectURL(file);
+                        document.getElementById('cover-dimensions').innerText = `Разрешение: ${img.width} × ${img.height} px`;
+                        
+                        const capacityBytes = Math.floor((img.width * img.height * 3) / 8);
+                        document.getElementById('cover-capacity').innerText = `Лимит емкости LSB: ~${humanSize(capacityBytes)}`;
+                        document.getElementById('cover-preview').classList.remove('hidden');
+                        addLog(`Носитель стего-карты изменен: ${file.name} (Макс. емкость: ${humanSize(capacityBytes)})`, 'info');
+                    } catch (err) {
+                        addLog("Не удалось загрузить изображение носителя: " + err, "error");
+                    }
+                }
+            });
+        });
+
+        // Logging
+        function addLog(message, type = 'info') {
+            const consoleEl = document.getElementById('console-log');
+            if (!consoleEl) return;
+            const time = new Date().toLocaleTimeString();
+            let color = 'text-slate-400';
+            let prefix = '⚙️';
+            
+            if (type === 'success') { color = 'text-emerald-400 font-semibold'; prefix = '✓'; }
+            else if (type === 'error') { color = 'text-red-400 font-semibold'; prefix = '✗'; }
+            else if (type === 'warning') { color = 'text-amber-400'; prefix = '⚠'; }
+            else if (type === 'info') { color = 'text-sky-400'; prefix = 'ℹ'; }
+            
+            const line = document.createElement('div');
+            line.className = `${color} flex items-start space-x-2`;
+            line.innerHTML = `<span class="text-slate-600 select-none">[${time}]</span> <span>${prefix} ${message}</span>`;
+            consoleEl.appendChild(line);
+            consoleEl.scrollTop = consoleEl.scrollHeight;
+        }
+        window.clearLogs = () => {
+            document.getElementById('console-log').innerHTML = '';
+            addLog("Консоль очищена.");
+        };
+
+        // Binary Utilities
+        function bytesToHex(bytes) {
+            return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        function hexToBytes(hex) {
+            hex = hex.trim().replace(/[^0-9a-fA-F]/g, '');
+            if (hex.length % 2 !== 0) throw new Error("Неверная длина HEX строки.");
+            const bytes = new Uint8Array(hex.length / 2);
+            for (let i = 0; i < bytes.length; i++) {
+                bytes[i] = parseInt(hex.substring(i * 2, i * 2 + 2), 16);
+            }
+            return bytes;
+        }
+
+        function readFileAsBytes(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(new Uint8Array(reader.result));
+                reader.onerror = reject;
+                reader.readAsArrayBuffer(file);
+            });
+        }
+
+        function humanSize(size) {
+            if (size === 0) return "0 B";
+            const units = ["B", "KB", "MB", "GB", "TB"];
+            const i = Math.min(Math.floor(Math.log(size) / Math.log(1024)), units.length - 1);
+            const val = size / Math.pow(1024, i);
+            return i > 0 ? `${val.toFixed(1)} ${units[i]}` : `${size} B`;
+        }
+
+        // State & LocalStorage
+        function saveStateToStorage() {
+            localStorage.setItem('pixelencoder_web_state', JSON.stringify({
+                myProfile: state.myProfile,
+                contacts: state.contacts
+            }));
+        }
+
+        function loadStateFromStorage() {
+            try {
+                const saved = localStorage.getItem('pixelencoder_web_state');
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    state.myProfile = parsed.myProfile || null;
+                    state.contacts = parsed.contacts || {};
+                }
+            } catch (err) {
+                addLog("Не удалось загрузить данные из локального кэша.", "warning");
+            }
+        }
+
+        // Contacts & Profiles management UI
+        function refreshContactsUI() {
+            const tableBody = document.getElementById('contacts-table-body');
+            const encSelect = document.getElementById('enc-contact-select');
+            
+            tableBody.innerHTML = '';
+            encSelect.innerHTML = '<option value="">-- Выберите контакт --</option>';
+
+            // Render Contacts List
+            Object.entries(state.contacts).forEach(([name, hexKey]) => {
+                const row = document.createElement('tr');
+                row.className = "hover:bg-slate-900/30";
+                row.innerHTML = `
+                    <td class="px-3 py-2.5 font-medium text-white">${name}</td>
+                    <td class="px-3 py-2.5 font-mono-custom text-[10px] text-slate-400 truncate max-w-[200px]">${hexKey}</td>
+                    <td class="px-3 py-2.5 text-right">
+                        <button onclick="deleteContact('${name}')" class="text-red-400 hover:text-red-300 transition">Удалить</button>
+                    </td>
+                `;
+                tableBody.appendChild(row);
+
+                const option = document.createElement('option');
+                option.value = name;
+                option.innerText = name;
+                encSelect.appendChild(option);
+            });
+
+            // Render My Profile Card
+            const myProfEmpty = document.getElementById('my-profile-empty');
+            const myProfData = document.getElementById('my-profile-data');
+            
+            if (state.myProfile) {
+                myProfEmpty.classList.add('hidden');
+                myProfData.classList.remove('hidden');
+                document.getElementById('my-profile-name').innerText = state.myProfile.name;
+                document.getElementById('my-profile-pub').innerText = state.myProfile.publicKey.substring(0, 32) + "...";
+            } else {
+                myProfEmpty.classList.remove('hidden');
+                myProfData.classList.add('hidden');
+            }
+        }
+
+        window.deleteContact = (name) => {
+            if (confirm(`Удалить контакт «${name}»?`)) {
+                delete state.contacts[name];
+                saveStateToStorage();
+                refreshContactsUI();
+                addLog(`Контакт «${name}» удален.`, 'info');
+            }
+        };
+
+        window.addNewContact = async () => {
+            const name = document.getElementById('add-contact-name').value.trim();
+            let hex = document.getElementById('add-contact-pubkey-hex').value.trim();
+            const fileInput = document.getElementById('add-contact-pubkey-file');
+
+            if (!name) {
+                alert("Введите имя контакта.");
+                return;
+            }
+
+            if (fileInput.files.length > 0) {
+                const bytes = await readFileAsBytes(fileInput.files[0]);
+                if (bytes.length === KYBER_PK_SIZE) {
+                    hex = bytesToHex(bytes);
+                }
+            }
+
+            try {
+                const rawBytes = hexToBytes(hex);
+                if (rawBytes.length !== KYBER_PK_SIZE) {
+                    alert(`Неверный размер ключа. Должно быть ровно ${KYBER_PK_SIZE} байт.`);
+                    return;
+                }
+                state.contacts[name] = bytesToHex(rawBytes);
+                saveStateToStorage();
+                refreshContactsUI();
+                
+                // Clear fields
+                document.getElementById('add-contact-name').value = '';
+                document.getElementById('add-contact-pubkey-hex').value = '';
+                document.getElementById('add-contact-pubkey-file').value = '';
+                
+                addLog(`Контакт «${name}» успешно сохранен!`, 'success');
+            } catch (err) {
+                alert("Ошибка валидации публичного ключа: " + err.message);
+            }
+        };
+
+        window.loadContactKey = (action) => {
+            if (action === 'encrypt') {
+                const selected = document.getElementById('enc-contact-select').value;
+                if (selected && state.contacts[selected]) {
+                    document.getElementById('enc-pubkey-hex').value = state.contacts[selected];
+                    addLog(`Выбран ключ контакта «${selected}».`, 'info');
+                }
+            }
+        };
+
+        window.useProfilePrivateKey = () => {
+            if (state.myProfile && state.myProfile.secretKey) {
+                document.getElementById('dec-privkey-hex').value = state.myProfile.secretKey;
+                addLog("Ваш секретный ключ из профиля вставлен в буфер расшифрования.", "info");
+            } else {
+                alert("Ваш локальный профиль пуст. Сгенерируйте и сохраните ключи во вкладке KeyGen.");
+            }
+        };
+
+        window.saveKeypairToProfile = () => {
+            const name = document.getElementById('save-profile-name').value.trim();
+            const pubHex = document.getElementById('keygen-pub-hex').value;
+            const privHex = document.getElementById('keygen-priv-hex').value;
+
+            if (!name) {
+                alert("Введите имя владельца для Вашего профиля.");
+                return;
+            }
+
+            state.myProfile = {
+                name: name,
+                publicKey: pubHex,
+                secretKey: privHex
+            };
+            saveStateToStorage();
+            refreshContactsUI();
+            addLog(`Профиль владельца «${name}» сохранен в браузере.`, "success");
+        };
+
+        window.clearMyProfile = () => {
+            if (confirm("Вы действительно хотите удалить Ваш локальный приватный профиль из браузера?")) {
+                state.myProfile = null;
+                saveStateToStorage();
+                refreshContactsUI();
+                addLog("Собственный локальный профиль очищен.", "info");
+            }
+        };
+
+        window.saveManualMyProfile = async () => {
+            const name = document.getElementById('manual-my-name').value.trim();
+            const pubFile = document.getElementById('manual-my-pubkey').files[0];
+            const privFile = document.getElementById('manual-my-privkey').files[0];
+
+            if (!name || !pubFile || !privFile) {
+                alert("Пожалуйста, заполните имя и выберите файлы обоих ключей.");
+                return;
+            }
+
+            try {
+                const pubBytes = await readFileAsBytes(pubFile);
+                const privBytes = await readFileAsBytes(privFile);
+
+                if (pubBytes.length !== KYBER_PK_SIZE || privBytes.length !== KYBER_SK_SIZE) {
+                    alert(`Ошибка размерности ключей. Публичный должен быть ${KYBER_PK_SIZE} B, приватный ${KYBER_SK_SIZE} B.`);
+                    return;
+                }
+
+                state.myProfile = {
+                    name: name,
+                    publicKey: bytesToHex(pubBytes),
+                    secretKey: bytesToHex(privBytes)
+                };
+                saveStateToStorage();
+                refreshContactsUI();
+                addLog(`Профиль «${name}» импортирован из файлов.`, 'success');
+            } catch (err) {
+                alert("Не удалось импортировать профиль: " + err);
+            }
+        };
+
+        // Navigation
+        window.switchTab = (tabId) => {
+            document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.add('hidden'));
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('border-emerald-500', 'text-emerald-400');
+                btn.classList.add('border-transparent', 'text-slate-400');
+            });
+
+            document.getElementById(tabId).classList.remove('hidden');
+            const targetBtn = document.getElementById('btn-' + tabId);
+            targetBtn.classList.remove('border-transparent', 'text-slate-400');
+            targetBtn.classList.add('border-emerald-500', 'text-emerald-400');
+        };
+
+        window.togglePayloadSource = () => {
+            const type = document.querySelector('input[name="payload-type"]:checked').value;
+            if (type === 'text') {
+                document.getElementById('payload-text-container').classList.remove('hidden');
+                document.getElementById('payload-file-container').classList.add('hidden');
+            } else {
+                document.getElementById('payload-text-container').classList.add('hidden');
+                document.getElementById('payload-file-container').classList.remove('hidden');
+            }
+        };
+
+        window.toggleOutputFormat = () => {
+            const format = document.querySelector('input[name="output-format"]:checked').value;
+            const coverContainer = document.getElementById('cover-file-container');
+            if (format === 'png') {
+                coverContainer.classList.remove('hidden');
+            } else {
+                coverContainer.classList.add('hidden');
+            }
+        };
+
+        window.copyToClipboard = (elId) => {
+            const textarea = document.getElementById(elId);
+            textarea.select();
+            document.execCommand('copy');
+            addLog("HEX строка скопирована в буфер обмена.", "info");
+        };
+
+        // UI trigger for keygen
+        window.handleKeyGen = () => {
+            addLog("Генерация постквантовой связки ключей ML-KEM-768...", 'info');
+            try {
+                const keys = ml_kem768.keygen();
+                
+                document.getElementById('keygen-pub-hex').value = bytesToHex(keys.publicKey);
+                document.getElementById('keygen-priv-hex').value = bytesToHex(keys.secretKey);
+                
+                // Set download buttons bindings
+                setupDownloadBtn('btn-dl-pub', keys.publicKey, 'public.kyber');
+                setupDownloadBtn('btn-dl-priv', keys.secretKey, 'private.kyber');
+                
+                document.getElementById('keygen-results').classList.remove('hidden');
+                addLog("Связка ключей успешно создана!", "success");
+            } catch (err) {
+                addLog("Критический сбой генерации: " + err, 'error');
+            }
+        };
+
+        function setupDownloadBtn(btnId, bytes, defaultFilename) {
+            const btn = document.getElementById(btnId);
+            btn.onclick = () => {
+                downloadBlob(bytes, defaultFilename);
+                addLog(`Файл '${defaultFilename}' скачан.`, 'info');
+            };
+        }
+
+        function downloadBlob(bytes, filename) {
+            const blob = new Blob([bytes], { type: 'application/octet-stream' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // Steganography helper
+        function loadImageFromFile(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.onload = () => resolve(img);
+                    img.onerror = reject;
+                    img.src = event.target.result;
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
+        // MSB-first bits generator to match Python logic
+        function getPayloadBits(payloadBytes, totalCapacityBits) {
+            const bits = new Uint8Array(totalCapacityBits);
+            let bitIdx = 0;
+            
+            // 1. Pack message payload
+            for (let i = 0; i < payloadBytes.length; i++) {
+                const byte = payloadBytes[i];
+                for (let b = 0; b < 8; b++) {
+                    if (bitIdx >= totalCapacityBits) return bits;
+                    bits[bitIdx++] = (byte >> (7 - b)) & 1;
+                }
+            }
+            
+            // 2. Pad remaining bytes with pseudo-random noise
+            while (bitIdx < totalCapacityBits) {
+                const randBlock = new Uint8Array(1024);
+                window.crypto.getRandomValues(randBlock);
+                for (let i = 0; i < randBlock.length; i++) {
+                    const byte = randBlock[i];
+                    for (let b = 0; b < 8; b++) {
+                        if (bitIdx >= totalCapacityBits) return bits;
+                        bits[bitIdx++] = (byte >> (7 - b)) & 1;
+                    }
+                }
+            }
+            return bits;
+        }
+
+        // Stego embeds payload into Canvas pixel components (R,G,B)
+        function embedLSBInCanvas(canvas, originalImg, payload) {
+            // Check capacity: each pixel can hold 3 bits
+            const totalBits = (4 + payload.length) * 8;
+            const currentCapacity = canvas.width * canvas.height * 3;
+            
+            let workingCanvas = canvas;
+            if (currentCapacity < totalBits) {
+                // Resize (Auto scaling to fit cargo dimensions)
+                const scale = Math.ceil(Math.sqrt(totalBits / currentCapacity));
+                addLog(`Контейнер слишком мал. Масштабируем разрешение до ${scale}x...`, 'warning');
+                
+                workingCanvas = document.createElement('canvas');
+                workingCanvas.width = originalImg.width * scale;
+                workingCanvas.height = originalImg.height * scale;
+                const tempCtx = workingCanvas.getContext('2d');
+                tempCtx.imageSmoothingEnabled = false; // Preserve raw pixel matrix
+                tempCtx.drawImage(originalImg, 0, 0, workingCanvas.width, workingCanvas.height);
+            }
+            
+            const ctx = workingCanvas.getContext('2d');
+            const imgData = ctx.getImageData(0, 0, workingCanvas.width, workingCanvas.height);
+            const pixelData = imgData.data;
+            const totalCapacityBits = workingCanvas.width * workingCanvas.height * 3;
+            
+            // Prepend payload length as 32-bit little endian uint32
+            const fullPayload = new Uint8Array(4 + payload.length);
+            const dataLen = payload.length;
+            fullPayload[0] = dataLen & 0xff;
+            fullPayload[1] = (dataLen >> 8) & 0xff;
+            fullPayload[2] = (dataLen >> 16) & 0xff;
+            fullPayload[3] = (dataLen >> 24) & 0xff;
+            fullPayload.set(payload, 4);
+            
+            const bits = getPayloadBits(fullPayload, totalCapacityBits);
+            let bitIdx = 0;
+            
+            for (let i = 0; i < pixelData.length; i += 4) {
+                if (bitIdx >= totalCapacityBits) break;
+                pixelData[i] = (pixelData[i] & ~1) | bits[bitIdx++];     // R
+                if (bitIdx >= totalCapacityBits) break;
+                pixelData[i+1] = (pixelData[i+1] & ~1) | bits[bitIdx++]; // G
+                if (bitIdx >= totalCapacityBits) break;
+                pixelData[i+2] = (pixelData[i+2] & ~1) | bits[bitIdx++]; // B
+            }
+            
+            ctx.putImageData(imgData, 0, 0);
+            return workingCanvas;
+        }
+
+        // Stego extracts payload from Canvas (static frame)
+        function extractLSBFromCanvas(canvas) {
+            const ctx = canvas.getContext('2d');
+            const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const pixelData = imgData.data;
+            
+            let pixelIdx = 0;
+            let channelIdx = 0; // 0: R, 1: G, 2: B
+            
+            function nextBit() {
+                if (pixelIdx >= pixelData.length) {
+                    throw new Error("Недостаточно пикселей для декодирования метаданных LSB.");
+                }
+                const bit = pixelData[pixelIdx + channelIdx] & 1;
+                channelIdx++;
+                if (channelIdx === 3) {
+                    channelIdx = 0;
+                    pixelIdx += 4; // skip alpha channel
+                }
+                return bit;
+            }
+            
+            // 1. Read first 32 bits (4 bytes) - little endian length
+            const lenBytes = new Uint8Array(4);
+            for (let byteIdx = 0; byteIdx < 4; byteIdx++) {
+                let byteVal = 0;
+                for (let b = 0; b < 8; b++) {
+                    byteVal = (byteVal << 1) | nextBit();
+                }
+                lenBytes[byteIdx] = byteVal;
+            }
+            
+            const dataLen = lenBytes[0] | (lenBytes[1] << 8) | (lenBytes[2] << 16) | (lenBytes[3] << 24);
+            if (dataLen <= 0 || dataLen > 100 * 1024 * 1024) {
+                throw new Error("Неверная длина метаданных или контейнер не зашифрован.");
+            }
+            
+            addLog(`Извлечение зашифрованного контейнера. Ожидаемый объем: ${humanSize(dataLen)}...`, 'info');
+            
+            // 2. Read exact payload bytes
+            const payload = new Uint8Array(dataLen);
+            for (let byteIdx = 0; byteIdx < dataLen; byteIdx++) {
+                let byteVal = 0;
+                for (let b = 0; b < 8; b++) {
+                    byteVal = (byteVal << 1) | nextBit();
+                }
+                payload[byteIdx] = byteVal;
+            }
+            return payload;
+        }
+
+        // Cryptography Core Helpers
+        async function sha256(bytes) {
+            const hashBuffer = await window.crypto.subtle.digest("SHA-256", bytes);
+            return new Uint8Array(hashBuffer);
+        }
+
+        function compareDigests(a, b) {
+            if (a.length !== b.length) return false;
+            let result = 0;
+            for (let i = 0; i < a.length; i++) {
+                result |= a[i] ^ b[i];
+            }
+            return result === 0;
+        }
+
+        function packInnerData(filename, extension, rawData, dataHash) {
+            const encoder = new TextEncoder();
+            const filenameBytes = encoder.encode(filename).slice(0, 255);
+            const extBytes = encoder.encode(extension).slice(0, 32);
+            
+            const totalLength = 1 + filenameBytes.length + 1 + extBytes.length + 4 + rawData.length + 32;
+            const buffer = new Uint8Array(totalLength);
+            let offset = 0;
+            
+            buffer[offset++] = filenameBytes.length;
+            buffer.set(filenameBytes, offset);
+            offset += filenameBytes.length;
+            
+            buffer[offset++] = extBytes.length;
+            buffer.set(extBytes, offset);
+            offset += extBytes.length;
+            
+            const len = rawData.length;
+            buffer[offset++] = len & 0xff;
+            buffer[offset++] = (len >> 8) & 0xff;
+            buffer[offset++] = (len >> 16) & 0xff;
+            buffer[offset++] = (len >> 24) & 0xff;
+            
+            buffer.set(rawData, offset);
+            offset += rawData.length;
+            
+            buffer.set(dataHash, offset);
+            return buffer;
+        }
+
+        function unpackInnerData(innerData) {
+            let offset = 0;
+            
+            const fnLen = innerData[offset++];
+            const filenameBytes = innerData.slice(offset, offset + fnLen);
+            offset += fnLen;
+            const filename = new TextDecoder().decode(filenameBytes);
+            
+            const extLen = innerData[offset++];
+            const extBytes = innerData.slice(offset, offset + extLen);
+            offset += extLen;
+            const extension = new TextDecoder().decode(extBytes);
+            
+            const dataLen = innerData[offset++] | (innerData[offset++] << 8) | (innerData[offset++] << 16) | (innerData[offset++] << 24);
+            
+            const data = innerData.slice(offset, offset + dataLen);
+            offset += dataLen;
+            
+            const storedHash = innerData.slice(offset, offset + 32);
+            
+            return { filename, extension, data, storedHash };
+        }
+
+        function packEncryptedBlock(kyberCipherText, nonce, aesCipherText) {
+            const totalLength = 1 + KYBER_CT_SIZE + NONCE_SIZE + 4 + aesCipherText.length;
+            const buffer = new Uint8Array(totalLength);
+            let offset = 0;
+            
+            buffer[offset++] = FORMAT_VERSION;
+            buffer.set(kyberCipherText, offset);
+            offset += KYBER_CT_SIZE;
+            
+            buffer.set(nonce, offset);
+            offset += NONCE_SIZE;
+            
+            const len = aesCipherText.length;
+            buffer[offset++] = len & 0xff;
+            buffer[offset++] = (len >> 8) & 0xff;
+            buffer[offset++] = (len >> 16) & 0xff;
+            buffer[offset++] = (len >> 24) & 0xff;
+            
+            buffer.set(aesCipherText, offset);
+            return buffer;
+        }
+
+        function unpackEncryptedBlock(encryptedBytes) {
+            let offset = 0;
+            const version = encryptedBytes[offset++];
+            if (version !== FORMAT_VERSION) {
+                throw new Error(`Неподдерживаемая версия структуры контейнера: v${version}`);
+            }
+            
+            const kyberCipherText = encryptedBytes.slice(offset, offset + KYBER_CT_SIZE);
+            offset += KYBER_CT_SIZE;
+            
+            const nonce = encryptedBytes.slice(offset, offset + NONCE_SIZE);
+            offset += NONCE_SIZE;
+            
+            const aesCtLen = encryptedBytes[offset++] | (encryptedBytes[offset++] << 8) | (encryptedBytes[offset++] << 16) | (encryptedBytes[offset++] << 24);
+            const aesCipherText = encryptedBytes.slice(offset, offset + aesCtLen);
+            
+            const header = encryptedBytes.slice(0, 1 + KYBER_CT_SIZE + NONCE_SIZE);
+            return { kyberCipherText, nonce, aesCipherText, header };
+        }
+
+        // WebCrypto AES-GCM-256 Encrypt & Decrypt
+        async function aesGcmEncrypt(sharedSecret, nonce, plaintext, associatedData) {
+            const key = await window.crypto.subtle.importKey("raw", sharedSecret, "AES-GCM", false, ["encrypt"]);
+            const ciphertextBuffer = await window.crypto.subtle.encrypt({
+                name: "AES-GCM",
+                iv: nonce,
+                additionalData: associatedData,
+                tagLength: 128
+            }, key, plaintext);
+            return new Uint8Array(ciphertextBuffer);
+        }
+
+        async function aesGcmDecrypt(sharedSecret, nonce, ciphertext, associatedData) {
+            const key = await window.crypto.subtle.importKey("raw", sharedSecret, "AES-GCM", false, ["decrypt"]);
+            try {
+                const plaintextBuffer = await window.crypto.subtle.decrypt({
+                    name: "AES-GCM",
+                    iv: nonce,
+                    additionalData: associatedData,
+                    tagLength: 128
+                }, key, ciphertext);
+                return new Uint8Array(plaintextBuffer);
+            } catch (err) {
+                throw new Error("Аутентификация AES-GCM провалена: неверный сессионный ключ или повреждение структуры.");
+            }
+        }
+
+        // Main Encryption Pipeline
+        window.handleEncrypt = async () => {
+            const pubKeyHex = document.getElementById('enc-pubkey-hex').value.trim();
+            if (!pubKeyHex) {
+                alert("Укажите публичный ключ получателя.");
+                return;
+            }
+
+            let publicKey;
+            try {
+                publicKey = hexToBytes(pubKeyHex);
+                if (publicKey.length !== KYBER_PK_SIZE) {
+                    throw new Error(`Размер публичного ключа должен быть равен ${KYBER_PK_SIZE} B.`);
+                }
+            } catch (err) {
+                alert("Ошибка валидации публичного ключа: " + err.message);
+                return;
+            }
+
+            const payloadType = document.querySelector('input[name="payload-type"]:checked').value;
+            let rawData;
+            let filename = "message";
+            let extension = ".txt";
+
+            if (payloadType === 'text') {
+                const txt = document.getElementById('payload-text').value;
+                if (!txt) {
+                    alert("Введите текст для шифрования.");
+                    return;
+                }
+                rawData = new TextEncoder().encode(txt);
+            } else {
+                const fileInput = document.getElementById('payload-file-input');
+                if (fileInput.files.length === 0) {
+                    alert("Выберите файл для шифрования.");
+                    return;
+                }
+                const file = fileInput.files[0];
+                rawData = await readFileAsBytes(file);
+                const lastDot = file.name.lastIndexOf('.');
+                if (lastDot !== -1) {
+                    filename = file.name.substring(0, lastDot);
+                    extension = file.name.substring(lastDot);
+                } else {
+                    filename = file.name;
+                    extension = '';
+                }
+            }
+
+            addLog("Запуск шифрования...", 'info');
+            try {
+                // 1. Kyber-768 Encapsulation
+                addLog("Генерация эфемерного сессионного ключа (ML-KEM-768)...", 'info');
+                const { cipherText: kyberCT, sharedSecret } = ml_kem768.encapsulate(publicKey);
+                addLog("Инкапсуляция сессии выполнена успешно.", 'success');
+
+                // 2. Compute payload SHA-256 hash
+                const dataHash = await sha256(rawData);
+
+                // 3. Assemble payload binary envelope
+                const innerData = packInnerData(filename, extension, rawData, dataHash);
+
+                // 4. Generate random IV (12 Bytes)
+                const nonce = new Uint8Array(NONCE_SIZE);
+                window.crypto.getRandomValues(nonce);
+
+                // 5. Build associated data header
+                const header = new Uint8Array(1 + KYBER_CT_SIZE + NONCE_SIZE);
+                header[0] = FORMAT_VERSION;
+                header.set(kyberCT, 1);
+                header.set(nonce, 1 + KYBER_CT_SIZE);
+
+                // 6. Encrypt inner envelope via AES-GCM
+                addLog("Симметричное шифрование пакета (AES-256-GCM)...", 'info');
+                const aesCT = await aesGcmEncrypt(sharedSecret, nonce, innerData, header);
+                
+                // 7. Assemble raw post-quantum payload
+                const encryptedPayload = packEncryptedBlock(kyberCT, nonce, aesCT);
+
+                // 8. Output compilation
+                const format = document.querySelector('input[name="output-format"]:checked').value;
+                if (format === 'enc') {
+                    // Prepend standard binary magic signature "PXEN"
+                    const encFileBytes = new Uint8Array(MAGIC_HEADER.length + encryptedPayload.length);
+                    encFileBytes.set(MAGIC_HEADER, 0);
+                    encFileBytes.set(encryptedPayload, MAGIC_HEADER.length);
+                    
+                    const outName = `encoded_${filename}.enc`;
+                    addLog(`Упаковка завершена. Скачивание бинарного архива: ${outName}`, 'success');
+                    downloadBlob(encFileBytes, outName);
+                } else {
+                    // Steganography injection
+                    const coverInput = document.getElementById('cover-file-input');
+                    if (coverInput.files.length === 0) {
+                        alert("Загрузите исходное изображение для стеганографии.");
+                        return;
+                    }
+                    
+                    addLog("Запуск генератора стего-контейнера...", 'info');
+                    const originalImg = await loadImageFromFile(coverInput.files[0]);
+                    
+                    // Create base canvas
+                    const canvas = document.createElement('canvas');
+                    canvas.width = originalImg.width;
+                    canvas.height = originalImg.height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(originalImg, 0, 0);
+                    
+                    // Process pixel adjustments
+                    const stegoCanvas = embedLSBInCanvas(canvas, originalImg, encryptedPayload);
+                    
+                    const outName = `stego_${filename}.png`;
+                    stegoCanvas.toBlob((blob) => {
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = outName;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                        addLog(`Стего-карта собрана без потерь данных. Файл сохранен: ${outName}`, 'success');
+                    }, 'image/png'); // Force PNG lossless compression
+                }
+            } catch (err) {
+                addLog("Шифрование прервано из-за ошибки: " + err, 'error');
+            }
+        };
+
+        // Main Decryption Pipeline
+        window.handleDecrypt = async () => {
+            const fileInput = document.getElementById('dec-input-file');
+            const privKeyHex = document.getElementById('dec-privkey-hex').value.trim();
+
+            if (fileInput.files.length === 0) {
+                alert("Укажите входной зашифрованный файл (.enc или стего .png).");
+                return;
+            }
+            if (!privKeyHex) {
+                alert("Введите приватный ключ для расшифрования.");
+                return;
+            }
+
+            let privateKey;
+            try {
+                privateKey = hexToBytes(privKeyHex);
+                if (privateKey.length !== KYBER_SK_SIZE) {
+                    throw new Error(`Размер приватного ключа должен быть равен ${KYBER_SK_SIZE} B.`);
+                }
+            } catch (err) {
+                alert("Ошибка валидации приватного ключа: " + err.message);
+                return;
+            }
+
+            addLog("Загрузка шифротекста в оперативную память...", 'info');
+            try {
+                const targetFile = fileInput.files[0];
+                let encryptedPayload;
+
+                // Format auto-detection
+                if (targetFile.type === 'image/png' || targetFile.name.endsWith('.png')) {
+                    addLog("Формат автоопределен: PNG Стего-Изображение.", 'info');
+                    const coverImg = await loadImageFromFile(targetFile);
+                    
+                    const canvas = document.createElement('canvas');
+                    canvas.width = coverImg.width;
+                    canvas.height = coverImg.height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(coverImg, 0, 0);
+                    
+                    // LSB extraction
+                    encryptedPayload = extractLSBFromCanvas(canvas);
+                } else {
+                    addLog("Формат автоопределен: Бинарный .enc архив.", 'info');
+                    const rawBytes = await readFileAsBytes(targetFile);
+                    
+                    // Match "PXEN" magic bytes
+                    const isMagicOk = rawBytes[0] === MAGIC_HEADER[0] &&
+                                      rawBytes[1] === MAGIC_HEADER[1] &&
+                                      rawBytes[2] === MAGIC_HEADER[2] &&
+                                      rawBytes[3] === MAGIC_HEADER[3];
+                    if (isMagicOk) {
+                        encryptedPayload = rawBytes.slice(MAGIC_HEADER.length);
+                    } else {
+                        addLog("Предупреждение: Сигнатура PXEN отсутствует, пробуем использовать сырой поток.", 'warning');
+                        encryptedPayload = rawBytes;
+                    }
+                }
+
+                addLog("Запуск квантового дешифратора...", 'info');
+                // 1. Unpack header structured components
+                const { kyberCipherText, nonce, aesCipherText, header } = unpackEncryptedBlock(encryptedPayload);
+
+                // 2. Kyber Decapsulation of Shared Secret
+                addLog("Декапсуляция общего сессионного ключа (ML-KEM-768)...", 'info');
+                const sharedSecret = ml_kem768.decapsulate(kyberCipherText, privateKey);
+
+                // 3. Symmetric decryption of cargo envelope
+                addLog("Симметричное дешифрование (AES-256-GCM)...", 'info');
+                const innerData = await aesGcmDecrypt(sharedSecret, nonce, aesCipherText, header);
+
+                // 4. Extract nested components
+                const { filename, extension, data, storedHash } = unpackInnerData(innerData);
+
+                // 5. Validation Integrity
+                addLog("Контроль целостности по хеш-сумме SHA-256...", 'info');
+                const computedHash = await sha256(data);
+                if (!compareDigests(computedHash, storedHash)) {
+                    throw new Error("Аутентичность контейнера нарушена! Обнаружено расхождение хеш-суммы.");
+                }
+
+                // Successful result handling
+                addLog("Проверка подлинности пройдена. Данные аутентичны.", 'success');
+                state.lastDecryptedData = data;
+                state.lastDecryptedFilename = filename + extension;
+
+                // Update UI elements
+                document.getElementById('decrypt-meta').innerText = `${filename}${extension} (${humanSize(data.length)})`;
+                
+                // Show text preview if txt
+                const textContainer = document.getElementById('decrypt-text-preview-container');
+                if (extension.toLowerCase() === '.txt') {
+                    const text = new TextDecoder().decode(data);
+                    document.getElementById('decrypt-text-preview').value = text;
+                    textContainer.classList.remove('hidden');
+                } else {
+                    textContainer.classList.add('hidden');
+                }
+
+                document.getElementById('decrypt-result-box').classList.remove('hidden');
+                addLog(`Расшифрование завершено успешно! Содержимое: ${filename}${extension}`, 'success');
+
+                // Auto-bind download button
+                document.getElementById('btn-download-decrypted').onclick = () => {
+                    downloadBlob(state.lastDecryptedData, state.lastDecryptedFilename);
+                    addLog(`Файл '${state.lastDecryptedFilename}' успешно сохранен.`, 'info');
+                };
+
+            } catch (err) {
+                addLog("Сбой дешифрования: " + err.message, 'error');
+            }
+        };
+    </script>
+</body>
+</html>
