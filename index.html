@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PixelEncoder v6.7 - Post-Quantum Web Edition</title>
+    <title>PixelEncoder v6.8 - Post-Quantum Web Edition</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
@@ -26,7 +26,7 @@
                 </div>
                 <div>
                     <h1 class="text-xl font-bold tracking-tight text-white flex items-center gap-2">
-                        PixelEncoder <span class="text-xs bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded">v6.7.0-Web</span>
+                        PixelEncoder <span class="text-xs bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded">v6.8.0-Web</span>
                     </h1>
                     <p class="text-xs text-slate-400">Post-Quantum Cryptography & Multi-Format Steganography (ML-KEM-768 / AES-GCM)</p>
                 </div>
@@ -48,7 +48,7 @@
             <p class="text-sm text-slate-300 leading-relaxed max-w-4xl">
                 Эта утилита является клиентским аналогом консольной версии на Python. Все криптографические операции выполняются 
                 <span class="text-emerald-400 font-semibold">исключительно внутри вашего браузера</span>. Полная совместимость: файлы <code class="bg-slate-900 px-1.5 py-0.5 rounded text-sky-400">.enc</code> 
-                и стего-файлы любых медиаформатов можно свободно расшифровывать на ПК, и наоборот.
+                и стего-файлы любых медиаформатов можно свободно расшифровывать в вебе и на ПК.
             </p>
         </div>
 
@@ -146,8 +146,8 @@
                                     <label class="border border-slate-800 p-3 rounded-xl cursor-pointer hover:bg-slate-900/40 flex items-start gap-2.5 transition">
                                         <input type="radio" name="stego-method" value="lsb" checked onchange="toggleStegoMethod()" class="mt-0.5 accent-emerald-500">
                                         <div>
-                                            <span class="block text-xs font-semibold text-white">Пиксельный LSB (PNG/BMP)</span>
-                                            <span class="block text-[10px] text-slate-400 mt-0.5">Классическое внедрение в младшие биты пикселей. Поддерживает только PNG/BMP.</span>
+                                            <span class="block text-xs font-semibold text-white">Пиксельный/Сэмпл LSB (PNG/BMP/WAV/AVI)</span>
+                                            <span class="block text-[10px] text-slate-400 mt-0.5">Классическое внедрение в младшие биты пикселей (PNG, Raw AVI) или аудиосэмплов (WAV).</span>
                                         </div>
                                     </label>
                                     <label class="border border-slate-800 p-3 rounded-xl cursor-pointer hover:bg-slate-900/40 flex items-start gap-2.5 transition">
@@ -403,7 +403,7 @@
 
         // Initialize App
         window.addEventListener('DOMContentLoaded', () => {
-            addLog("PixelEncoder v6.7.0 Post-Quantum Web-Edition инициализирован.", "info");
+            addLog("PixelEncoder v6.8.0 Post-Quantum Web-Edition initialized.", "info");
             loadStateFromStorage();
             refreshContactsUI();
             togglePayloadSource();
@@ -485,38 +485,59 @@
                             const capacityBytes = Math.floor((img.width * img.height * 3) / 8);
                             document.getElementById('cover-capacity').innerText = `Емкость LSB: ~${humanSize(capacityBytes)}`;
                             
-                            // Enable both LSB and Overlay
+                            // Enable LSB and Overlay
                             document.querySelector('input[name="stego-method"][value="lsb"]').disabled = false;
                             addLog(`Носитель изменен: ${file.name} (Изображение)`, 'info');
+                        } else if (file.name.endsWith('.wav')) {
+                            previewAudioIcon.classList.remove('hidden');
+                            previewAudio.src = fileUrl;
+                            audioContainer.classList.remove('hidden');
+                            previewAudio.load();
+                            
+                            document.getElementById('cover-dimensions').innerText = `Аудио WAV (PCM)`;
+                            const capacityBytes = Math.floor(file.size / 4); // estimate for 16-bit stereo WAV LSB capacity
+                            document.getElementById('cover-capacity').innerText = `Емкость LSB: ~${humanSize(capacityBytes)}`;
+                            
+                            document.querySelector('input[name="stego-method"][value="lsb"]').disabled = false;
+                            addLog(`Носитель изменен: ${file.name} (Звук WAV). Поддерживается как LSB, так и Overlay.`, 'info');
+                        } else if (file.name.endsWith('.avi')) {
+                            previewVid.src = fileUrl;
+                            previewVid.classList.remove('hidden');
+                            previewVid.load();
+                            
+                            document.getElementById('cover-dimensions').innerText = `Видео AVI`;
+                            const capacityBytes = Math.floor(file.size / 8); // estimate LSB capacity
+                            document.getElementById('cover-capacity').innerText = `Емкость LSB: ~${humanSize(capacityBytes)}`;
+                            
+                            document.querySelector('input[name="stego-method"][value="lsb"]').disabled = false;
+                            addLog(`Носитель изменен: ${file.name} (Видео AVI). Поддерживается как LSB, так и Overlay. Внимание: LSB требует несжатого Raw RGB видео.`, 'warning');
                         } else if (detectedType === 'video') {
                             previewVid.src = fileUrl;
                             previewVid.classList.remove('hidden');
                             previewVid.load();
                             
-                            document.getElementById('cover-dimensions').innerText = `Видео-контейнер`;
+                            document.getElementById('cover-dimensions').innerText = `Видео-контейнер (${extension.toUpperCase()})`;
                             document.getElementById('cover-capacity').innerText = `Емкость Overlay: Не ограничена`;
                             
-                            // Force select Overlay since LSB is impossible for video in browser
                             document.querySelector('input[name="stego-method"][value="overlay"]').checked = true;
                             document.querySelector('input[name="stego-method"][value="lsb"]').disabled = true;
                             toggleStegoMethod();
                             
-                            addLog(`Носитель изменен: ${file.name} (Видео). Выбран метод Overlay.`, 'info');
+                            addLog(`Носитель изменен: ${file.name} (Видео). Пиксельный LSB недоступен. Автоматически выбран метод Overlay.`, 'info');
                         } else if (detectedType === 'audio') {
                             previewAudioIcon.classList.remove('hidden');
                             previewAudio.src = fileUrl;
                             audioContainer.classList.remove('hidden');
                             previewAudio.load();
                             
-                            document.getElementById('cover-dimensions').innerText = `Аудио-контейнер`;
+                            document.getElementById('cover-dimensions').innerText = `Аудио-контейнер (${extension.toUpperCase()})`;
                             document.getElementById('cover-capacity').innerText = `Емкость Overlay: Не ограничена`;
                             
-                            // Force select Overlay since LSB is impossible for audio in browser
                             document.querySelector('input[name="stego-method"][value="overlay"]').checked = true;
                             document.querySelector('input[name="stego-method"][value="lsb"]').disabled = true;
                             toggleStegoMethod();
 
-                            addLog(`Носитель изменен: ${file.name} (Аудио). Выбран метод Overlay.`, 'info');
+                            addLog(`Носитель изменен: ${file.name} (Аудио). Пиксельный LSB недоступен. Автоматически выбран метод Overlay.`, 'info');
                         } else {
                             document.getElementById('cover-dimensions').innerText = `Контейнер общего формата`;
                             document.getElementById('cover-capacity').innerText = `Емкость Overlay: Не ограничена`;
@@ -830,7 +851,7 @@
 
         window.toggleStegoMethod = () => {
             const method = document.querySelector('input[name="stego-method"]:checked').value;
-            addLog(`Переключен метод стеганографии: ${method === 'lsb' ? 'Пиксельный LSB' : 'Медиа-Контейнер (Overlay)'}`, 'info');
+            addLog(`Переключен метод стеганографии: ${method === 'lsb' ? 'Пиксельный/Сэмпл LSB' : 'Медиа-Контейнер (Overlay)'}`, 'info');
         };
 
         window.copyToClipboard = (elId) => {
@@ -1022,6 +1043,285 @@
                 }
                 payload[byteIdx] = byteVal;
             }
+            return payload;
+        }
+
+        // === WAV LSB Steganography implementation ===
+        function embedWavLSB(wavBytes, payloadBytes) {
+            let dataOffset = -1;
+            let dataSize = 0;
+            let bitsPerSample = 16;
+            
+            const view = new DataView(wavBytes.buffer, wavBytes.byteOffset, wavBytes.byteLength);
+            if (view.getUint32(0, false) !== 0x52494646) throw new Error("Неверный формат RIFF.");
+            if (view.getUint32(8, false) !== 0x57415645) throw new Error("Неверный формат WAVE.");
+            
+            let pos = 12;
+            while (pos < wavBytes.length - 8) {
+                const chunkId = view.getUint32(pos, false);
+                const chunkSize = view.getUint32(pos + 4, true);
+                if (chunkId === 0x666d7420) { // "fmt "
+                    bitsPerSample = view.getUint16(pos + 8 + 14, true);
+                } else if (chunkId === 0x64617461) { // "data"
+                    dataOffset = pos + 8;
+                    dataSize = chunkSize;
+                    break;
+                }
+                pos += 8 + chunkSize + (chunkSize % 2);
+            }
+            
+            if (dataOffset === -1) throw new Error("Не найден аудио-блок (data chunk) в файле WAV.");
+            
+            let bytesPerSample = bitsPerSample / 8;
+            if (bytesPerSample !== 1 && bytesPerSample !== 2) {
+                throw new Error("Поддерживаются только 8-битные и 16-битные WAV файлы.");
+            }
+            
+            const maxSamples = Math.floor(dataSize / bytesPerSample);
+            const payloadLen = payloadBytes.length;
+            const fullPayload = new Uint8Array(4 + payloadLen);
+            fullPayload[0] = payloadLen & 0xff;
+            fullPayload[1] = (payloadLen >> 8) & 0xff;
+            fullPayload[2] = (payloadLen >> 16) & 0xff;
+            fullPayload[3] = (payloadLen >> 24) & 0xff;
+            fullPayload.set(payloadBytes, 4);
+            
+            const totalBitsNeeded = fullPayload.length * 8;
+            if (totalBitsNeeded > maxSamples) {
+                throw new Error(`Файл WAV слишком мал. Максимальная емкость: ${Math.floor(maxSamples / 8)} байт, требуется: ${fullPayload.length} байт.`);
+            }
+            
+            const resultBytes = new Uint8Array(wavBytes);
+            let bitIdx = 0;
+            
+            for (let sampleIdx = 0; sampleIdx < maxSamples; sampleIdx++) {
+                if (bitIdx >= totalBitsNeeded) break;
+                
+                // In Little Endian WAV, first byte of the sample has the least significant bits.
+                const bytePos = dataOffset + sampleIdx * bytesPerSample;
+                const payloadByte = fullPayload[Math.floor(bitIdx / 8)];
+                const payloadBit = (payloadByte >> (7 - (bitIdx % 8))) & 1;
+                
+                resultBytes[bytePos] = (resultBytes[bytePos] & ~1) | payloadBit;
+                bitIdx++;
+            }
+            
+            return resultBytes;
+        }
+
+        function extractWavLSB(wavBytes) {
+            let dataOffset = -1;
+            let dataSize = 0;
+            let bitsPerSample = 16;
+            
+            const view = new DataView(wavBytes.buffer, wavBytes.byteOffset, wavBytes.byteLength);
+            if (view.getUint32(0, false) !== 0x52494646) throw new Error("Неверный формат RIFF.");
+            if (view.getUint32(8, false) !== 0x57415645) throw new Error("Неверный формат WAVE.");
+            
+            let pos = 12;
+            while (pos < wavBytes.length - 8) {
+                const chunkId = view.getUint32(pos, false);
+                const chunkSize = view.getUint32(pos + 4, true);
+                if (chunkId === 0x666d7420) { // "fmt "
+                    bitsPerSample = view.getUint16(pos + 8 + 14, true);
+                } else if (chunkId === 0x64617461) { // "data"
+                    dataOffset = pos + 8;
+                    dataSize = chunkSize;
+                    break;
+                }
+                pos += 8 + chunkSize + (chunkSize % 2);
+            }
+            
+            if (dataOffset === -1) throw new Error("Не найден аудио-блок (data chunk) в файле WAV.");
+            
+            let bytesPerSample = bitsPerSample / 8;
+            if (bytesPerSample !== 1 && bytesPerSample !== 2) {
+                throw new Error("Поддерживаются только 8-битные и 16-битные WAV файлы.");
+            }
+            
+            const maxSamples = Math.floor(dataSize / bytesPerSample);
+            let bitIdx = 0;
+            
+            // 1. Read first 32 bits of length
+            const lenBytes = new Uint8Array(4);
+            for (let byteIdx = 0; byteIdx < 4; byteIdx++) {
+                let byteVal = 0;
+                for (let b = 0; b < 8; b++) {
+                    if (bitIdx >= maxSamples) throw new Error("Не удалось прочитать длину из WAV LSB.");
+                    const bytePos = dataOffset + bitIdx * bytesPerSample;
+                    const bit = wavBytes[bytePos] & 1;
+                    byteVal = (byteVal << 1) | bit;
+                    bitIdx++;
+                }
+                lenBytes[byteIdx] = byteVal;
+            }
+            
+            const dataLen = lenBytes[0] | (lenBytes[1] << 8) | (lenBytes[2] << 16) | (lenBytes[3] << 24);
+            if (dataLen <= 0 || dataLen > 50 * 1024 * 1024 || dataLen * 8 > maxSamples - 32) {
+                throw new Error("Неверная длина метаданных или файл не содержит WAV LSB.");
+            }
+            
+            const payload = new Uint8Array(dataLen);
+            for (let byteIdx = 0; byteIdx < dataLen; byteIdx++) {
+                let byteVal = 0;
+                for (let b = 0; b < 8; b++) {
+                    if (bitIdx >= maxSamples) throw new Error("Сбой при извлечении WAV LSB.");
+                    const bytePos = dataOffset + bitIdx * bytesPerSample;
+                    const bit = wavBytes[bytePos] & 1;
+                    byteVal = (byteVal << 1) | bit;
+                    bitIdx++;
+                }
+                payload[byteIdx] = byteVal;
+            }
+            return payload;
+        }
+
+        // === AVI RIFF LSB Steganography implementation ===
+        function parseAviMoviChunks(aviBytes) {
+            const chunks = [];
+            const view = new DataView(aviBytes.buffer, aviBytes.byteOffset, aviBytes.byteLength);
+            
+            if (view.getUint32(0, false) !== 0x52494646) throw new Error("Неверный формат RIFF.");
+            if (view.getUint32(8, false) !== 0x41564920) throw new Error("Неверный формат AVI.");
+            
+            let pos = 12;
+            while (pos < aviBytes.length - 8) {
+                const id = view.getUint32(pos, false);
+                const size = view.getUint32(pos + 4, true);
+                
+                if (id === 0x4c495354) { // "LIST"
+                    const type = view.getUint32(pos + 8, false);
+                    if (type === 0x6d6f7669) { // "movi"
+                        let listPos = pos + 12;
+                        const listEnd = pos + 8 + size;
+                        while (listPos < listEnd - 8) {
+                            const chunkId = view.getUint32(listPos, false);
+                            const chunkSize = view.getUint32(listPos + 4, true);
+                            
+                            const idStr = String.fromCharCode(
+                                (chunkId >> 24) & 0xff,
+                                (chunkId >> 16) & 0xff,
+                                (chunkId >> 8) & 0xff,
+                                chunkId & 0xff
+                            );
+                            
+                            // Check video streams chunks (ends with "db" or "dc")
+                            if (idStr.endsWith('db') || idStr.endsWith('dc')) {
+                                chunks.push({
+                                    offset: listPos + 8,
+                                    size: chunkSize
+                                });
+                            }
+                            
+                            listPos += 8 + chunkSize + (chunkSize % 2);
+                        }
+                        break;
+                    }
+                }
+                pos += 8 + size + (size % 2);
+            }
+            
+            return chunks;
+        }
+
+        function embedAviLSB(aviBytes, payloadBytes) {
+            const chunks = parseAviMoviChunks(aviBytes);
+            if (chunks.length === 0) {
+                throw new Error("Не найдены кадры видео (movi chunks) в файле AVI.");
+            }
+            
+            let totalAvailableBytes = 0;
+            for (const chunk of chunks) {
+                totalAvailableBytes += chunk.size;
+            }
+            
+            const payloadLen = payloadBytes.length;
+            const fullPayload = new Uint8Array(4 + payloadLen);
+            fullPayload[0] = payloadLen & 0xff;
+            fullPayload[1] = (payloadLen >> 8) & 0xff;
+            fullPayload[2] = (payloadLen >> 16) & 0xff;
+            fullPayload[3] = (payloadLen >> 24) & 0xff;
+            fullPayload.set(payloadBytes, 4);
+            
+            const totalBitsNeeded = fullPayload.length * 8;
+            if (totalBitsNeeded > totalAvailableBytes) {
+                throw new Error(`Файл AVI слишком мал. Емкость LSB: ${Math.floor(totalAvailableBytes / 8)} байт, требуется: ${fullPayload.length} байт.`);
+            }
+            
+            const resultBytes = new Uint8Array(aviBytes);
+            let bitIdx = 0;
+            
+            for (const chunk of chunks) {
+                if (bitIdx >= totalBitsNeeded) break;
+                for (let i = 0; i < chunk.size; i++) {
+                    if (bitIdx >= totalBitsNeeded) break;
+                    
+                    const bytePos = chunk.offset + i;
+                    const payloadByte = fullPayload[Math.floor(bitIdx / 8)];
+                    const payloadBit = (payloadByte >> (7 - (bitIdx % 8))) & 1;
+                    
+                    resultBytes[bytePos] = (resultBytes[bytePos] & ~1) | payloadBit;
+                    bitIdx++;
+                }
+            }
+            
+            return resultBytes;
+        }
+
+        function extractAviLSB(aviBytes) {
+            const chunks = parseAviMoviChunks(aviBytes);
+            if (chunks.length === 0) {
+                throw new Error("Не найдены кадры видео (movi chunks) в файле AVI.");
+            }
+            
+            let totalAvailableBytes = 0;
+            for (const chunk of chunks) {
+                totalAvailableBytes += chunk.size;
+            }
+            
+            let currentChunkIdx = 0;
+            let byteInChunkIdx = 0;
+            
+            function nextBit() {
+                if (currentChunkIdx >= chunks.length) {
+                    throw new Error("Достигнут неожиданный конец видеопотока.");
+                }
+                const chunk = chunks[currentChunkIdx];
+                const bytePos = chunk.offset + byteInChunkIdx;
+                const bit = aviBytes[bytePos] & 1;
+                
+                byteInChunkIdx++;
+                if (byteInChunkIdx >= chunk.size) {
+                    byteInChunkIdx = 0;
+                    currentChunkIdx++;
+                }
+                return bit;
+            }
+            
+            // 1. Read first 32 bits of length
+            const lenBytes = new Uint8Array(4);
+            for (let byteIdx = 0; byteIdx < 4; byteIdx++) {
+                let byteVal = 0;
+                for (let b = 0; b < 8; b++) {
+                    byteVal = (byteVal << 1) | nextBit();
+                }
+                lenBytes[byteIdx] = byteVal;
+            }
+            
+            const dataLen = lenBytes[0] | (lenBytes[1] << 8) | (lenBytes[2] << 16) | (lenBytes[3] << 24);
+            if (dataLen <= 0 || dataLen > 50 * 1024 * 1024 || dataLen * 8 > totalAvailableBytes - 32) {
+                throw new Error("Неверная длина метаданных или файл не содержит AVI LSB.");
+            }
+            
+            const payload = new Uint8Array(dataLen);
+            for (let byteIdx = 0; byteIdx < dataLen; byteIdx++) {
+                let byteVal = 0;
+                for (let b = 0; b < 8; b++) {
+                    byteVal = (byteVal << 1) | nextBit();
+                }
+                payload[byteIdx] = byteVal;
+            }
+            
             return payload;
         }
 
@@ -1269,30 +1569,44 @@
                     const outName = `stego_${coverNameOnly}${coverExt}`;
 
                     if (stegoMethod === 'lsb') {
-                        addLog("Запуск генератора стего-карты (Pixel LSB)...", 'info');
-                        const originalImg = await loadImageFromFile(coverFile);
-                        
-                        // Create base canvas
-                        const canvas = document.createElement('canvas');
-                        canvas.width = originalImg.width;
-                        canvas.height = originalImg.height;
-                        const ctx = canvas.getContext('2d');
-                        ctx.drawImage(originalImg, 0, 0);
-                        
-                        // Process pixel adjustments
-                        const stegoCanvas = embedLSBInCanvas(canvas, originalImg, encryptedPayload);
-                        
-                        stegoCanvas.toBlob((blob) => {
-                            const url = URL.createObjectURL(blob);
-                            const a = document.createElement('a');
-                            a.href = url;
-                            a.download = outName.endsWith('.png') ? outName : outName + '.png'; // Force PNG for Canvas LSB
-                            document.body.appendChild(a);
-                            a.click();
-                            document.body.removeChild(a);
-                            URL.revokeObjectURL(url);
-                            addLog(`Стего-карта (LSB) собрана. Файл сохранен: ${a.download}`, 'success');
-                        }, 'image/png'); // Force PNG lossless compression
+                        const coverBytes = await readFileAsBytes(coverFile);
+                        if (coverFile.name.endsWith('.wav')) {
+                            addLog("Запуск генератора стего-звука (WAV LSB)...", 'info');
+                            const stegoWavBytes = embedWavLSB(coverBytes, encryptedPayload);
+                            downloadBlob(stegoWavBytes, outName);
+                            addLog(`Стего-аудиозапись (WAV LSB) собрана. Файл сохранен: ${outName}`, 'success');
+                        } else if (coverFile.name.endsWith('.avi')) {
+                            addLog("Запуск генератора стего-видео (AVI LSB)...", 'info');
+                            addLog("Внимание: для корректного LSB видеофайл AVI должен содержать несжатый поток (Raw RGB/BGR). Сжатые AVI файлы могут исказиться.", "warning");
+                            const stegoAviBytes = embedAviLSB(coverBytes, encryptedPayload);
+                            downloadBlob(stegoAviBytes, outName);
+                            addLog(`Стего-видеозапись (AVI LSB) собрана. Файл сохранен: ${outName}`, 'success');
+                        } else {
+                            addLog("Запуск генератора стего-карты (Pixel LSB)...", 'info');
+                            const originalImg = await loadImageFromFile(coverFile);
+                            
+                            // Create base canvas
+                            const canvas = document.createElement('canvas');
+                            canvas.width = originalImg.width;
+                            canvas.height = originalImg.height;
+                            const ctx = canvas.getContext('2d');
+                            ctx.drawImage(originalImg, 0, 0);
+                            
+                            // Process pixel adjustments
+                            const stegoCanvas = embedLSBInCanvas(canvas, originalImg, encryptedPayload);
+                            
+                            stegoCanvas.toBlob((blob) => {
+                                const url = URL.createObjectURL(blob);
+                                const a = document.createElement('a');
+                                a.href = url;
+                                a.download = outName.endsWith('.png') ? outName : outName + '.png'; // Force PNG for Canvas LSB
+                                document.body.appendChild(a);
+                                a.click();
+                                document.body.removeChild(a);
+                                URL.revokeObjectURL(url);
+                                addLog(`Стего-карта (LSB) собрана. Файл сохранен: ${a.download}`, 'success');
+                            }, 'image/png'); // Force PNG lossless compression
+                        }
                     } else {
                         // Overlay Steganography (Any media format: mp4, avi, mov, mp3, wav, ogg, jpg, png, etc.)
                         addLog(`Сборка медиа-контейнера (Overlay) для ${coverFile.name}...`, 'info');
@@ -1310,7 +1624,7 @@
                         finalBytes.set(footerBytes, coverBytes.length + blockLen + 4);
                         
                         downloadBlob(finalBytes, outName);
-                        addLog(`Скрытый контейнер собран без потерь качества. Файл сохранен: ${outName}`, 'success');
+                        addLog(`Скрытый контейнер (Overlay) собран без перекодирования. Файл сохранен: ${outName}`, 'success');
                     }
                 }
             } catch (err) {
@@ -1370,6 +1684,12 @@
                     
                     encryptedPayload = rawBytes.slice(totalLen - 8 - blockLen, totalLen - 8);
                     addLog(`Извлечен скрытый контейнер. Размер блока: ${humanSize(blockLen)}`, 'success');
+                } else if (targetFile.name.endsWith('.wav')) {
+                    addLog("Формат автоопределен: Аудиозапись WAV (LSB).", 'info');
+                    encryptedPayload = extractWavLSB(rawBytes);
+                } else if (targetFile.name.endsWith('.avi')) {
+                    addLog("Формат автоопределен: Видеозапись AVI (LSB).", 'info');
+                    encryptedPayload = extractAviLSB(rawBytes);
                 } else if (targetFile.type === 'image/png' || targetFile.name.endsWith('.png')) {
                     addLog("Формат автоопределен: PNG Стего-Изображение (LSB).", 'info');
                     const coverImg = await loadImageFromFile(targetFile);
