@@ -1033,31 +1033,39 @@
 
         // MP4 ISOBMFF Struct Steganography Helpers (Atom Hiding)
         function insertFreeBoxInMP4(mp4Bytes, payloadBytes) {
-            // Find first box (usually 'ftyp') to insert our box safely right after it
-            let firstBoxSize = 0;
+            let offset = 0;
             const len = mp4Bytes.length;
-            if (len >= 8) {
-                let size = (mp4Bytes[0] << 24) | (mp4Bytes[1] << 16) | (mp4Bytes[2] << 8) | mp4Bytes[3];
+            
+            // Если последний верхнеуровневый бокс имеет неопределенный размер 0 (EOF),
+            // перезапишем его размер на фактический, чтобы добавление в конец файла не ломало его структуру.
+            while (offset + 8 <= len) {
+                const size = ((mp4Bytes[offset] << 24) | (mp4Bytes[offset+1] << 16) | (mp4Bytes[offset+2] << 8) | mp4Bytes[offset+3]) >>> 0;
                 if (size === 1) {
-                    if (len >= 16) {
-                        const low = (mp4Bytes[12] << 24) | (mp4Bytes[13] << 16) | (mp4Bytes[14] << 8) | mp4Bytes[15];
-                        firstBoxSize = low;
-                    }
+                    if (offset + 16 > len) break;
+                    const high = (mp4Bytes[offset+8] << 24) | (mp4Bytes[offset+9] << 16) | (mp4Bytes[offset+10] << 8) | mp4Bytes[offset+11];
+                    const low = (mp4Bytes[offset+12] << 24) | (mp4Bytes[offset+13] << 16) | (mp4Bytes[offset+14] << 8) | mp4Bytes[offset+15];
+                    const actualSize = (high * 0x100000000) + low;
+                    if (actualSize <= 0) break;
+                    offset += actualSize;
+                } else if (size === 0) {
+                    const actualSize = len - offset;
+                    mp4Bytes[offset] = (actualSize >> 24) & 0xff;
+                    mp4Bytes[offset+1] = (actualSize >> 16) & 0xff;
+                    mp4Bytes[offset+2] = (actualSize >> 8) & 0xff;
+                    mp4Bytes[offset+3] = actualSize & 0xff;
+                    break;
                 } else {
-                    firstBoxSize = size;
+                    if (size < 8) break;
+                    offset += size;
                 }
             }
 
-            if (firstBoxSize <= 0 || firstBoxSize > len) {
-                firstBoxSize = 0; // fallback to prepend if parsing first box fails
-            }
-
-            // Build 'free' box: [size (4B)] + [type 'free' (4B)] + [magic 'PXED' (4B)] + [payload (N Bytes)]
+            // Создаем 'free' бокс: [size (4B)] + [type 'free' (4B)] + [magic 'PXED' (4B)] + [payload (N Bytes)]
             const boxPayloadLen = 4 + payloadBytes.length;
             const totalBoxSize = 8 + boxPayloadLen;
             const freeBox = new Uint8Array(totalBoxSize);
 
-            // size
+            // size (big-endian 32-bit)
             freeBox[0] = (totalBoxSize >> 24) & 0xff;
             freeBox[1] = (totalBoxSize >> 16) & 0xff;
             freeBox[2] = (totalBoxSize >> 8) & 0xff;
@@ -1077,48 +1085,37 @@
 
             freeBox.set(payloadBytes, 12);
 
+            // Добавляем 'free' контейнер в самый конец файла.
+            // Это не смещает медиа-данные, сохраняя абсолютные смещения stco/co64 нетронутыми.
             const result = new Uint8Array(len + totalBoxSize);
-            if (firstBoxSize > 0) {
-                result.set(mp4Bytes.slice(0, firstBoxSize), 0);
-                result.set(freeBox, firstBoxSize);
-                result.set(mp4Bytes.slice(firstBoxSize), firstBoxSize + totalBoxSize);
-            } else {
-                result.set(freeBox, 0);
-                result.set(mp4Bytes, totalBoxSize);
-            }
+            result.set(mp4Bytes, 0);
+            result.set(freeBox, len);
             return result;
         }
 
         function findHiddenPayloadInMP4(bytes) {
-            let offset = 0;
             const len = bytes.length;
-            while (offset + 8 <= len) {
-                let size = (bytes[offset] << 24) | (bytes[offset+1] << 16) | (bytes[offset+2] << 8) | bytes[offset+3];
-                const typeBytes = bytes.slice(offset + 4, offset + 8);
-                const type = new TextDecoder().decode(typeBytes);
-
-                let headerSize = 8;
-                let actualSize = size;
-                if (size === 1) {
-                    if (offset + 16 > len) break;
-                    const low = (bytes[offset+12] << 24) | (bytes[offset+13] << 16) | (bytes[offset+14] << 8) | bytes[offset+15];
-                    actualSize = low;
-                    headerSize = 16;
-                } else if (size === 0) {
-                    actualSize = len - offset;
-                }
-
-                if (actualSize < headerSize || offset + actualSize > len) {
-                    break; // invalid box size
-                }
-
-                if (type === 'free') {
-                    const boxContent = bytes.slice(offset + headerSize, offset + actualSize);
-                    if (boxContent.length >= 4 && boxContent[0] === 80 && boxContent[1] === 88 && boxContent[2] === 69 && boxContent[3] === 68) {
-                        return boxContent.slice(4); // Match magic "PXED" -> slice payload
+            // Сканируем с конца файла для мгновенного поиска сигнатуры 'freePXED'
+            // 'f' 'r' 'e' 'e' 'P' 'X' 'E' 'D' -> 0x66, 0x72, 0x65, 0x65, 0x50, 0x58, 0x45, 0x44
+            for (let i = len - 8; i >= 4; i--) {
+                if (bytes[i] === 0x66 &&
+                    bytes[i+1] === 0x72 &&
+                    bytes[i+2] === 0x65 &&
+                    bytes[i+3] === 0x65 &&
+                    bytes[i+4] === 0x50 &&
+                    bytes[i+5] === 0x58 &&
+                    bytes[i+6] === 0x45 &&
+                    bytes[i+7] === 0x44) {
+                    
+                    const boxStart = i - 4;
+                    const size = ((bytes[boxStart] << 24) | (bytes[boxStart+1] << 16) | (bytes[boxStart+2] << 8) | bytes[boxStart+3]) >>> 0;
+                    const payloadStart = i + 8;
+                    const payloadLen = size - 12;
+                    
+                    if (payloadLen > 0 && payloadStart + payloadLen <= len) {
+                        return bytes.slice(payloadStart, payloadStart + payloadLen);
                     }
                 }
-                offset += actualSize;
             }
             return null;
         }
