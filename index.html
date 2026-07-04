@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PixelEncoder v6.8 - Post-Quantum Web Edition</title>
+    <title>PixelEncoder v6.9 - Post-Quantum Web Edition</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
@@ -26,7 +26,7 @@
                 </div>
                 <div>
                     <h1 class="text-xl font-bold tracking-tight text-white flex items-center gap-2">
-                        PixelEncoder <span class="text-xs bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded">v6.8.0-Web</span>
+                        PixelEncoder <span class="text-xs bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded">v6.9.0-Web</span>
                     </h1>
                     <p class="text-xs text-slate-400">Post-Quantum Cryptography & Multi-Format Steganography (ML-KEM-768 / AES-GCM)</p>
                 </div>
@@ -48,7 +48,7 @@
             <p class="text-sm text-slate-300 leading-relaxed max-w-4xl">
                 Эта утилита является клиентским аналогом консольной версии на Python. Все криптографические операции выполняются 
                 <span class="text-emerald-400 font-semibold">исключительно внутри вашего браузера</span>. Полная совместимость: файлы <code class="bg-slate-900 px-1.5 py-0.5 rounded text-sky-400">.enc</code> 
-                и стего-файлы любых медиаформатов можно свободно расшифровывать на ПК, и наоборот.
+                и стего-файлы любых медиаформатов можно свободно дешифровать локально.
             </p>
         </div>
 
@@ -142,26 +142,19 @@
                         <div id="cover-file-container" class="hidden border-t border-slate-800/60 pt-4 space-y-4">
                             <div class="space-y-2">
                                 <label class="block text-xs font-medium text-slate-400">Стего-метод (Способ сокрытия)</label>
-                                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     <label class="border border-slate-800 p-3 rounded-xl cursor-pointer hover:bg-slate-900/40 flex items-start gap-2.5 transition">
                                         <input type="radio" name="stego-method" value="lsb" checked onchange="toggleStegoMethod()" class="mt-0.5 accent-emerald-500">
                                         <div>
-                                            <span class="block text-xs font-semibold text-white">Пиксельный LSB</span>
-                                            <span class="block text-[10px] text-slate-400 mt-0.5">В младшие биты пикселей PNG/BMP.</span>
+                                            <span class="block text-xs font-semibold text-white">Пиксельный LSB (PNG/BMP)</span>
+                                            <span class="block text-[10px] text-slate-400 mt-0.5">Внедрение в младшие биты пикселей изображения.</span>
                                         </div>
                                     </label>
                                     <label class="border border-slate-800 p-3 rounded-xl cursor-pointer hover:bg-slate-900/40 flex items-start gap-2.5 transition">
-                                        <input type="radio" name="stego-method" value="dct" onchange="toggleStegoMethod()" class="mt-0.5 accent-emerald-500">
+                                        <input type="radio" name="stego-method" value="container" onchange="toggleStegoMethod()" class="mt-0.5 accent-emerald-500">
                                         <div>
-                                            <span class="block text-xs font-semibold text-white">Частотный DCT</span>
-                                            <span class="block text-[10px] text-slate-400 mt-0.5">В спектральные коэффициенты 8x8 (PNG).</span>
-                                        </div>
-                                    </label>
-                                    <label class="border border-slate-800 p-3 rounded-xl cursor-pointer hover:bg-slate-900/40 flex items-start gap-2.5 transition">
-                                        <input type="radio" name="stego-method" value="overlay" onchange="toggleStegoMethod()" class="mt-0.5 accent-emerald-500">
-                                        <div>
-                                            <span class="block text-xs font-semibold text-white">Медиа-Overlay</span>
-                                            <span class="block text-[10px] text-slate-400 mt-0.5">В хвост MP4, MP3, WAV, AVI, OGG.</span>
+                                            <span class="block text-xs font-semibold text-white">Медиа-Контейнер (Интеллектуальный)</span>
+                                            <span class="block text-[10px] text-slate-400 mt-0.5">Внедрение в структуру MP4/MOV (атом 'free'), либо структурный Overlay для MP3, WAV, AVI, OGG.</span>
                                         </div>
                                     </label>
                                 </div>
@@ -399,61 +392,6 @@
         const KYBER_SK_SIZE = 2400;
         const KYBER_CT_SIZE = 1088;
         const NONCE_SIZE = 12;
-        const Q_STEP = 16; // Шаг квантования DCT (оптимальный баланс незаметности и стабильности)
-
-        // Таблица косинусов для ускорения 2D DCT
-        const cosTable = new Float64Array(8 * 8);
-        for (let u = 0; u < 8; u++) {
-            for (let x = 0; x < 8; x++) {
-                cosTable[u * 8 + x] = Math.cos(((2 * x + 1) * u * Math.PI) / 16);
-            }
-        }
-
-        function getC(w) {
-            return w === 0 ? 1 / Math.sqrt(2) : 1;
-        }
-
-        // Двумерное дискретное косинусное преобразование DCT-II для блока 8x8
-        function dct2D(block) {
-            const out = new Float64Array(64);
-            for (let u = 0; u < 8; u++) {
-                const cu = getC(u);
-                for (let v = 0; v < 8; v++) {
-                    const cv = getC(v);
-                    let sum = 0;
-                    for (let x = 0; x < 8; x++) {
-                        const cosX = cosTable[u * 8 + x];
-                        for (let y = 0; y < 8; y++) {
-                            const cosY = cosTable[v * 8 + y];
-                            sum += block[x * 8 + y] * cosX * cosY;
-                        }
-                    }
-                    out[u * 8 + v] = 0.25 * cu * cv * sum;
-                }
-            }
-            return out;
-        }
-
-        // Обратное двумерное дискретное косинусное преобразование IDCT для блока 8x8
-        function idct2D(block) {
-            const out = new Float64Array(64);
-            for (let x = 0; x < 8; x++) {
-                for (let y = 0; y < 8; y++) {
-                    let sum = 0;
-                    for (let u = 0; u < 8; u++) {
-                        const cu = getC(u);
-                        const cosX = cosTable[u * 8 + x];
-                        for (let v = 0; v < 8; v++) {
-                            const cv = getC(v);
-                            const cosY = cosTable[v * 8 + y];
-                            sum += cu * cv * block[u * 8 + v] * cosX * cosY;
-                        }
-                    }
-                    out[x * 8 + y] = 0.25 * sum;
-                }
-            }
-            return out;
-        }
 
         // Reactive Application State
         let state = {
@@ -465,7 +403,7 @@
 
         // Initialize App
         window.addEventListener('DOMContentLoaded', () => {
-            addLog("PixelEncoder v6.8.0-Web (С частотным DCT и Overlay-контейнерами) инициализирован.", "info");
+            addLog("PixelEncoder v6.9.0-Web инициализирован.", "info");
             loadStateFromStorage();
             refreshContactsUI();
             togglePayloadSource();
@@ -543,15 +481,10 @@
                             previewImg.src = fileUrl;
                             previewImg.classList.remove('hidden');
                             document.getElementById('cover-dimensions').innerText = `Разрешение: ${img.width} × ${img.height} px`;
-                            
                             const capacityBytes = Math.floor((img.width * img.height * 3) / 8);
-                            const blocks = Math.floor(img.width / 8) * Math.floor(img.height / 8);
-                            const dctCapacityBytes = blocks * 6; // AC коэффициенты 1-16 (16 бит * 3 канала = 48 бит = 6 байт на блок)
-                            
-                            document.getElementById('cover-capacity').innerText = `Емкость LSB: ~${humanSize(capacityBytes)} | DCT: ~${humanSize(dctCapacityBytes)}`;
+                            document.getElementById('cover-capacity').innerText = `Емкость LSB: ~${humanSize(capacityBytes)} | Контейнер: Не ограничена`;
                             
                             document.querySelector('input[name="stego-method"][value="lsb"]').disabled = false;
-                            document.querySelector('input[name="stego-method"][value="dct"]').disabled = false;
                             addLog(`Носитель изменен: ${file.name} (Изображение)`, 'info');
                         } else if (detectedType === 'video') {
                             previewVid.src = fileUrl;
@@ -559,14 +492,13 @@
                             previewVid.load();
                             
                             document.getElementById('cover-dimensions').innerText = `Видео-контейнер`;
-                            document.getElementById('cover-capacity').innerText = `Емкость Overlay: Не ограничена`;
+                            document.getElementById('cover-capacity').innerText = `Емкость контейнера: Без потерь`;
                             
-                            document.querySelector('input[name="stego-method"][value="overlay"]').checked = true;
+                            document.querySelector('input[name="stego-method"][value="container"]').checked = true;
                             document.querySelector('input[name="stego-method"][value="lsb"]').disabled = true;
-                            document.querySelector('input[name="stego-method"][value="dct"]').disabled = true;
                             toggleStegoMethod();
                             
-                            addLog(`Носитель изменен: ${file.name} (Видео). Автоматически выбран метод Overlay.`, 'info');
+                            addLog(`Носитель изменен: ${file.name} (Видео). Включение интеллектуального структурирования.`, 'info');
                         } else if (detectedType === 'audio') {
                             previewAudioIcon.classList.remove('hidden');
                             previewAudio.src = fileUrl;
@@ -574,22 +506,20 @@
                             previewAudio.load();
                             
                             document.getElementById('cover-dimensions').innerText = `Аудио-контейнер`;
-                            document.getElementById('cover-capacity').innerText = `Емкость Overlay: Не ограничена`;
+                            document.getElementById('cover-capacity').innerText = `Емкость контейнера: Без потерь`;
                             
-                            document.querySelector('input[name="stego-method"][value="overlay"]').checked = true;
+                            document.querySelector('input[name="stego-method"][value="container"]').checked = true;
                             document.querySelector('input[name="stego-method"][value="lsb"]').disabled = true;
-                            document.querySelector('input[name="stego-method"][value="dct"]').disabled = true;
                             toggleStegoMethod();
 
-                            addLog(`Носитель изменен: ${file.name} (Аудио). Автоматически выбран метод Overlay.`, 'info');
+                            addLog(`Носитель изменен: ${file.name} (Аудио). Включение структурного сокрытия.`, 'info');
                         } else {
-                            document.getElementById('cover-dimensions').innerText = `Контейнер общего формата`;
-                            document.getElementById('cover-capacity').innerText = `Емкость Overlay: Не ограничена`;
-                            document.querySelector('input[name="stego-method"][value="overlay"]').checked = true;
+                            document.getElementById('cover-dimensions').innerText = `Файл общего формата`;
+                            document.getElementById('cover-capacity').innerText = `Емкость контейнера: Без ограничений`;
+                            document.querySelector('input[name="stego-method"][value="container"]').checked = true;
                             document.querySelector('input[name="stego-method"][value="lsb"]').disabled = true;
-                            document.querySelector('input[name="stego-method"][value="dct"]').disabled = true;
                             toggleStegoMethod();
-                            addLog(`Файл-носитель общего типа: ${file.name}. Выбран метод Overlay.`, 'warning');
+                            addLog(`Носитель общего формата: ${file.name}.`, 'warning');
                         }
 
                         document.getElementById('cover-preview').classList.remove('hidden');
@@ -768,6 +698,7 @@
                 saveStateToStorage();
                 refreshContactsUI();
                 
+                // Clear fields
                 document.getElementById('add-contact-name').value = '';
                 document.getElementById('add-contact-pubkey-hex').value = '';
                 document.getElementById('add-contact-pubkey-file').value = '';
@@ -895,7 +826,7 @@
 
         window.toggleStegoMethod = () => {
             const method = document.querySelector('input[name="stego-method"]:checked').value;
-            addLog(`Переключен метод стеганографии: ${method === 'lsb' ? 'Пиксельный LSB' : method === 'dct' ? 'Частотный DCT' : 'Медиа-Overlay'}`, 'info');
+            addLog(`Выбран метод скрытия данных: ${method === 'lsb' ? 'Пиксельный LSB' : 'Медиа-Контейнер'}`, 'info');
         };
 
         window.copyToClipboard = (elId) => {
@@ -990,11 +921,13 @@
 
         // Stego embeds payload into Canvas pixel components (R,G,B)
         function embedLSBInCanvas(canvas, originalImg, payload) {
+            // Check capacity: each pixel can hold 3 bits
             const totalBits = (4 + payload.length) * 8;
             const currentCapacity = canvas.width * canvas.height * 3;
             
             let workingCanvas = canvas;
             if (currentCapacity < totalBits) {
+                // Resize (Auto scaling to fit cargo dimensions)
                 const scale = Math.ceil(Math.sqrt(totalBits / currentCapacity));
                 addLog(`Контейнер слишком мал. Масштабируем разрешение до ${scale}x...`, 'warning');
                 
@@ -1002,7 +935,7 @@
                 workingCanvas.width = originalImg.width * scale;
                 workingCanvas.height = originalImg.height * scale;
                 const tempCtx = workingCanvas.getContext('2d');
-                tempCtx.imageSmoothingEnabled = false; 
+                tempCtx.imageSmoothingEnabled = false; // Preserve raw pixel matrix
                 tempCtx.drawImage(originalImg, 0, 0, workingCanvas.width, workingCanvas.height);
             }
             
@@ -1011,6 +944,7 @@
             const pixelData = imgData.data;
             const totalCapacityBits = workingCanvas.width * workingCanvas.height * 3;
             
+            // Prepend payload length as 32-bit little endian uint32
             const fullPayload = new Uint8Array(4 + payload.length);
             const dataLen = payload.length;
             fullPayload[0] = dataLen & 0xff;
@@ -1052,11 +986,12 @@
                 channelIdx++;
                 if (channelIdx === 3) {
                     channelIdx = 0;
-                    pixelIdx += 4; 
+                    pixelIdx += 4; // skip alpha channel
                 }
                 return bit;
             }
             
+            // 1. Read first 32 bits (4 bytes) - little endian length
             const lenBytes = new Uint8Array(4);
             for (let byteIdx = 0; byteIdx < 4; byteIdx++) {
                 let byteVal = 0;
@@ -1071,8 +1006,9 @@
                 throw new Error("Неверная длина метаданных или контейнер не зашифрован.");
             }
             
-            addLog(`Извлечение зашифрованного контейнера. Ожидаемый объем LSB: ${humanSize(dataLen)}...`, 'info');
+            addLog(`Извлечение зашифрованного контейнера. Ожидаемый объем: ${humanSize(dataLen)}...`, 'info');
             
+            // 2. Read exact payload bytes
             const payload = new Uint8Array(dataLen);
             for (let byteIdx = 0; byteIdx < dataLen; byteIdx++) {
                 let byteVal = 0;
@@ -1084,213 +1020,99 @@
             return payload;
         }
 
-        // Внедрение полезной нагрузки в среднечастотные AC-коэффициенты DCT блоков 8x8
-        function embedDCTInCanvas(originalImg, payload) {
-            const width = originalImg.width;
-            const height = originalImg.height;
-            
-            // Округляем разрешение до ближайшего кратного 8
-            const adjWidth = Math.ceil(width / 8) * 8;
-            const adjHeight = Math.ceil(height / 8) * 8;
-            
-            const workingCanvas = document.createElement('canvas');
-            workingCanvas.width = adjWidth;
-            workingCanvas.height = adjHeight;
-            const ctx = workingCanvas.getContext('2d');
-            ctx.drawImage(originalImg, 0, 0, adjWidth, adjHeight);
-            
-            const imgData = ctx.getImageData(0, 0, adjWidth, adjHeight);
-            const pixels = imgData.data;
-            
-            // Рассчитываем общую битовую емкость контейнера на базе блоков 8x8
-            const blocksCount = (adjWidth / 8) * (adjHeight / 8);
-            const totalCapacityBits = blocksCount * 16 * 3; // по 16 AC-коэффициентов на каждый из 3 каналов (R, G, B)
-            
-            const fullPayload = new Uint8Array(4 + payload.length);
-            const dataLen = payload.length;
-            fullPayload[0] = dataLen & 0xff;
-            fullPayload[1] = (dataLen >> 8) & 0xff;
-            fullPayload[2] = (dataLen >> 16) & 0xff;
-            fullPayload[3] = (dataLen >> 24) & 0xff;
-            fullPayload.set(payload, 4);
-            
-            if (fullPayload.length * 8 > totalCapacityBits) {
-                throw new Error(`Размер шифропакета превышает спектральную емкость DCT выбранного носителя. Требуется изображение большего разрешения.`);
-            }
-            
-            // Подготовка битстрима, заполненного криптографическим шумом в остатке
-            const bits = new Uint8Array(totalCapacityBits);
-            let bitIdx = 0;
-            for (let i = 0; i < fullPayload.length; i++) {
-                const byte = fullPayload[i];
-                for (let b = 0; b < 8; b++) {
-                    bits[bitIdx++] = (byte >> (7 - b)) & 1;
+        // MP4 ISOBMFF Struct Steganography Helpers (Atom Hiding)
+        function insertFreeBoxInMP4(mp4Bytes, payloadBytes) {
+            // Find first box (usually 'ftyp') to insert our box safely right after it
+            let firstBoxSize = 0;
+            const len = mp4Bytes.length;
+            if (len >= 8) {
+                let size = (mp4Bytes[0] << 24) | (mp4Bytes[1] << 16) | (mp4Bytes[2] << 8) | mp4Bytes[3];
+                if (size === 1) {
+                    if (len >= 16) {
+                        const low = (mp4Bytes[12] << 24) | (mp4Bytes[13] << 16) | (mp4Bytes[14] << 8) | mp4Bytes[15];
+                        firstBoxSize = low;
+                    }
+                } else {
+                    firstBoxSize = size;
                 }
             }
-            while (bitIdx < totalCapacityBits) {
-                const randBlock = new Uint8Array(1024);
-                window.crypto.getRandomValues(randBlock);
-                for (let i = 0; i < randBlock.length; i++) {
-                    const byte = randBlock[i];
-                    for (let b = 0; b < 8; b++) {
-                        if (bitIdx >= totalCapacityBits) break;
-                        bits[bitIdx++] = (byte >> (7 - b)) & 1;
-                    }
-                }
+
+            if (firstBoxSize <= 0 || firstBoxSize > len) {
+                firstBoxSize = 0; // fallback to prepend if parsing first box fails
             }
-            
-            let bitPointer = 0;
-            
-            // Процессинг блоков 8x8
-            for (let by = 0; by < adjHeight; by += 8) {
-                for (let bx = 0; bx < adjWidth; bx += 8) {
-                    const rBlock = new Float64Array(64);
-                    const gBlock = new Float64Array(64);
-                    const bBlock = new Float64Array(64);
-                    
-                    for (let y = 0; y < 8; y++) {
-                        for (let x = 0; x < 8; x++) {
-                            const pxIdx = ((by + y) * adjWidth + (bx + x)) * 4;
-                            rBlock[y * 8 + x] = pixels[pxIdx];
-                            gBlock[y * 8 + x] = pixels[pxIdx + 1];
-                            bBlock[y * 8 + x] = pixels[pxIdx + 2];
-                        }
-                    }
-                    
-                    // Перевод в частотную область (2D DCT)
-                    const rDct = dct2D(rBlock);
-                    const gDct = dct2D(gBlock);
-                    const bDct = dct2D(bBlock);
-                    
-                    // Модификация LSB квантованных AC-коэффициентов с 1 по 16
-                    const channels = [rDct, gDct, bDct];
-                    for (const dct of channels) {
-                        for (let coefIdx = 1; coefIdx <= 16; coefIdx++) {
-                            const val = dct[coefIdx];
-                            let qVal = Math.round(val / Q_STEP);
-                            const bit = bits[bitPointer++];
-                            qVal = (qVal & ~1) | bit;
-                            dct[coefIdx] = qVal * Q_STEP;
-                        }
-                    }
-                    
-                    // Перевод обратно в пространственную матрицу пикселей (2D IDCT)
-                    const rNew = idct2D(rDct);
-                    const gNew = idct2D(gDct);
-                    const bNew = idct2D(bDct);
-                    
-                    for (let y = 0; y < 8; y++) {
-                        for (let x = 0; x < 8; x++) {
-                            const pxIdx = ((by + y) * adjWidth + (bx + x)) * 4;
-                            pixels[pxIdx]     = Math.max(0, Math.min(255, Math.round(rNew[y * 8 + x])));
-                            pixels[pxIdx + 1] = Math.max(0, Math.min(255, Math.round(gNew[y * 8 + x])));
-                            pixels[pxIdx + 2] = Math.max(0, Math.min(255, Math.round(bNew[y * 8 + x])));
-                        }
-                    }
-                }
+
+            // Build 'free' box: [size (4B)] + [type 'free' (4B)] + [magic 'PXED' (4B)] + [payload (N Bytes)]
+            const boxPayloadLen = 4 + payloadBytes.length;
+            const totalBoxSize = 8 + boxPayloadLen;
+            const freeBox = new Uint8Array(totalBoxSize);
+
+            // size
+            freeBox[0] = (totalBoxSize >> 24) & 0xff;
+            freeBox[1] = (totalBoxSize >> 16) & 0xff;
+            freeBox[2] = (totalBoxSize >> 8) & 0xff;
+            freeBox[3] = totalBoxSize & 0xff;
+
+            // type 'free'
+            freeBox[4] = 102; // f
+            freeBox[5] = 114; // r
+            freeBox[6] = 101; // e
+            freeBox[7] = 101; // e
+
+            // magic 'PXED'
+            freeBox[8] = 80;  // P
+            freeBox[9] = 88;  // X
+            freeBox[10] = 69; // E
+            freeBox[11] = 68; // D
+
+            freeBox.set(payloadBytes, 12);
+
+            const result = new Uint8Array(len + totalBoxSize);
+            if (firstBoxSize > 0) {
+                result.set(mp4Bytes.slice(0, firstBoxSize), 0);
+                result.set(freeBox, firstBoxSize);
+                result.set(mp4Bytes.slice(firstBoxSize), firstBoxSize + totalBoxSize);
+            } else {
+                result.set(freeBox, 0);
+                result.set(mp4Bytes, totalBoxSize);
             }
-            
-            ctx.putImageData(imgData, 0, 0);
-            return workingCanvas;
+            return result;
         }
 
-        // Извлечение данных из частотных спектров 2D DCT
-        function extractDCTFromCanvas(canvas) {
-            const width = canvas.width;
-            const height = canvas.height;
-            
-            if (width % 8 !== 0 || height % 8 !== 0) {
-                throw new Error("Неверная кратность разрешения. Изображение не содержит частотных блоков DCT.");
-            }
-            
-            const ctx = canvas.getContext('2d');
-            const imgData = ctx.getImageData(0, 0, width, height);
-            const pixels = imgData.data;
-            
-            let bitArr = [];
-            let bxIdx = 0;
-            let byIdx = 0;
-            
-            function getNextBits(count) {
-                while (bitArr.length < count) {
-                    if (byIdx >= height) {
-                        throw new Error("Недостаточно спектральных блоков DCT для извлечения метаданных.");
-                    }
-                    
-                    const rBlock = new Float64Array(64);
-                    const gBlock = new Float64Array(64);
-                    const bBlock = new Float64Array(64);
-                    
-                    for (let y = 0; y < 8; y++) {
-                        for (let x = 0; x < 8; x++) {
-                            const pxIdx = ((byIdx + y) * width + (bxIdx + x)) * 4;
-                            rBlock[y * 8 + x] = pixels[pxIdx];
-                            gBlock[y * 8 + x] = pixels[pxIdx + 1];
-                            bBlock[y * 8 + x] = pixels[pxIdx + 2];
-                        }
-                    }
-                    
-                    const rDct = dct2D(rBlock);
-                    const gDct = dct2D(gBlock);
-                    const bDct = dct2D(bBlock);
-                    
-                    const channels = [rDct, gDct, bDct];
-                    for (const dct of channels) {
-                        for (let coefIdx = 1; coefIdx <= 16; coefIdx++) {
-                            const val = dct[coefIdx];
-                            const qVal = Math.round(val / Q_STEP);
-                            const bit = Math.abs(qVal) & 1; // абсолютное значение для корректности битовых операций с отрицательными числами
-                            bitArr.push(bit);
-                        }
-                    }
-                    
-                    bxIdx += 8;
-                    if (bxIdx >= width) {
-                        bxIdx = 0;
-                        byIdx += 8;
+        function findHiddenPayloadInMP4(bytes) {
+            let offset = 0;
+            const len = bytes.length;
+            while (offset + 8 <= len) {
+                let size = (bytes[offset] << 24) | (bytes[offset+1] << 16) | (bytes[offset+2] << 8) | bytes[offset+3];
+                const typeBytes = bytes.slice(offset + 4, offset + 8);
+                const type = new TextDecoder().decode(typeBytes);
+
+                let headerSize = 8;
+                let actualSize = size;
+                if (size === 1) {
+                    if (offset + 16 > len) break;
+                    const low = (bytes[offset+12] << 24) | (bytes[offset+13] << 16) | (bytes[offset+14] << 8) | bytes[offset+15];
+                    actualSize = low;
+                    headerSize = 16;
+                } else if (size === 0) {
+                    actualSize = len - offset;
+                }
+
+                if (actualSize < headerSize || offset + actualSize > len) {
+                    break; // invalid box size
+                }
+
+                if (type === 'free') {
+                    const boxContent = bytes.slice(offset + headerSize, offset + actualSize);
+                    if (boxContent.length >= 4 && boxContent[0] === 80 && boxContent[1] === 88 && boxContent[2] === 69 && boxContent[3] === 68) {
+                        return boxContent.slice(4); // Match magic "PXED" -> slice payload
                     }
                 }
-                
-                const result = bitArr.slice(0, count);
-                bitArr = bitArr.slice(count);
-                return result;
+                offset += actualSize;
             }
-            
-            // 1. Извлекаем размер пакета (первые 32 бита)
-            const lenBits = getNextBits(32);
-            const lenBytes = new Uint8Array(4);
-            for (let byteIdx = 0; byteIdx < 4; byteIdx++) {
-                let byteVal = 0;
-                for (let b = 0; b < 8; b++) {
-                    byteVal = (byteVal << 1) | lenBits[byteIdx * 8 + b];
-                }
-                lenBytes[byteIdx] = byteVal;
-            }
-            
-            const dataLen = lenBytes[0] | (lenBytes[1] << 8) | (lenBytes[2] << 16) | (lenBytes[3] << 24);
-            if (dataLen <= 0 || dataLen > 10 * 1024 * 1024) {
-                throw new Error("Неверный размер метаданных в частотной сетке DCT.");
-            }
-            
-            addLog(`Извлечение зашифрованного контейнера. Ожидаемый объем DCT: ${humanSize(dataLen)}...`, 'info');
-            
-            // 2. Извлекаем точные байты полезной нагрузки
-            const totalBitsNeeded = dataLen * 8;
-            const dataBits = getNextBits(totalBitsNeeded);
-            
-            const payload = new Uint8Array(dataLen);
-            for (let byteIdx = 0; byteIdx < dataLen; byteIdx++) {
-                let byteVal = 0;
-                for (let b = 0; b < 8; b++) {
-                    byteVal = (byteVal << 1) | dataBits[byteIdx * 8 + b];
-                }
-                payload[byteIdx] = byteVal;
-            }
-            
-            return payload;
+            return null;
         }
 
-        // Main Decryption Flow with Auto-detection
+        // Cryptography Core Helpers
         async function sha256(bytes) {
             const hashBuffer = await window.crypto.subtle.digest("SHA-256", bytes);
             return new Uint8Array(hashBuffer);
@@ -1509,6 +1331,7 @@
                 // 8. Output compilation
                 const format = document.querySelector('input[name="output-format"]:checked').value;
                 if (format === 'enc') {
+                    // Prepend standard binary magic signature "PXEN"
                     const encFileBytes = new Uint8Array(MAGIC_HEADER.length + encryptedPayload.length);
                     encFileBytes.set(MAGIC_HEADER, 0);
                     encFileBytes.set(encryptedPayload, MAGIC_HEADER.length);
@@ -1517,6 +1340,7 @@
                     addLog(`Упаковка завершена. Скачивание бинарного архива: ${outName}`, 'success');
                     downloadBlob(encFileBytes, outName);
                 } else {
+                    // Steganography injection
                     const coverInput = document.getElementById('cover-file-input');
                     if (coverInput.files.length === 0) {
                         alert("Загрузите исходный файл-носитель для стеганографии.");
@@ -1535,58 +1359,54 @@
                         addLog("Запуск генератора стего-карты (Pixel LSB)...", 'info');
                         const originalImg = await loadImageFromFile(coverFile);
                         
+                        // Create base canvas
                         const canvas = document.createElement('canvas');
                         canvas.width = originalImg.width;
                         canvas.height = originalImg.height;
                         const ctx = canvas.getContext('2d');
                         ctx.drawImage(originalImg, 0, 0);
                         
+                        // Process pixel adjustments
                         const stegoCanvas = embedLSBInCanvas(canvas, originalImg, encryptedPayload);
                         
                         stegoCanvas.toBlob((blob) => {
                             const url = URL.createObjectURL(blob);
                             const a = document.createElement('a');
                             a.href = url;
-                            a.download = outName.endsWith('.png') ? outName : outName + '.png'; 
+                            a.download = outName.endsWith('.png') ? outName : outName + '.png'; // Force PNG for Canvas LSB
                             document.body.appendChild(a);
                             a.click();
                             document.body.removeChild(a);
                             URL.revokeObjectURL(url);
                             addLog(`Стего-карта (LSB) собрана. Файл сохранен: ${a.download}`, 'success');
-                        }, 'image/png'); 
-                    } else if (stegoMethod === 'dct') {
-                        addLog("Запуск частотного стего-кодера (2D DCT-II)...", 'info');
-                        const originalImg = await loadImageFromFile(coverFile);
-                        
-                        const stegoCanvas = embedDCTInCanvas(originalImg, encryptedPayload);
-                        
-                        stegoCanvas.toBlob((blob) => {
-                            const url = URL.createObjectURL(blob);
-                            const a = document.createElement('a');
-                            a.href = url;
-                            a.download = outName.endsWith('.png') ? outName : outName + '.png'; 
-                            document.body.appendChild(a);
-                            a.click();
-                            document.body.removeChild(a);
-                            URL.revokeObjectURL(url);
-                            addLog(`Стего-карта (DCT) собрана. Файл сохранен: ${a.download}`, 'success');
-                        }, 'image/png'); 
+                        }, 'image/png'); // Force PNG lossless compression
                     } else {
-                        addLog(`Сборка медиа-контейнера (Overlay) для ${coverFile.name}...`, 'info');
-                        const coverBytes = await readFileAsBytes(coverFile);
-                        
-                        const blockLen = encryptedPayload.length;
-                        const lenBytes = uint32ToBytesLE(blockLen);
-                        const footerBytes = new Uint8Array([80, 88, 69, 68]); // "PXED"
-                        
-                        const finalBytes = new Uint8Array(coverBytes.length + blockLen + 4 + 4);
-                        finalBytes.set(coverBytes, 0);
-                        finalBytes.set(encryptedPayload, coverBytes.length);
-                        finalBytes.set(lenBytes, coverBytes.length + blockLen);
-                        finalBytes.set(footerBytes, coverBytes.length + blockLen + 4);
-                        
-                        downloadBlob(finalBytes, outName);
-                        addLog(`Скрытый контейнер собран без потерь качества. Файл сохранен: ${outName}`, 'success');
+                        // Media Container Steganography
+                        const extension = coverFile.name.split('.').pop().toLowerCase();
+                        if (extension === 'mp4' || extension === 'mov') {
+                            addLog(`Встраивание структуры в MP4/MOV контейнер через атом 'free'...`, 'info');
+                            const coverBytes = await readFileAsBytes(coverFile);
+                            const finalBytes = insertFreeBoxInMP4(coverBytes, encryptedPayload);
+                            downloadBlob(finalBytes, outName);
+                            addLog(`Стего-контейнер MP4 собран структурным методом. Файл сохранен: ${outName}`, 'success');
+                        } else {
+                            addLog(`Сборка медиа-контейнера методом Overlay для ${coverFile.name}...`, 'info');
+                            const coverBytes = await readFileAsBytes(coverFile);
+                            
+                            // Create overlay package: [coverBytes] + [encryptedPayload] + [blockLen (4B)] + [magic PXED (4B)]
+                            const blockLen = encryptedPayload.length;
+                            const lenBytes = uint32ToBytesLE(blockLen);
+                            const footerBytes = new Uint8Array([80, 88, 69, 68]); // "PXED"
+                            
+                            const finalBytes = new Uint8Array(coverBytes.length + blockLen + 4 + 4);
+                            finalBytes.set(coverBytes, 0);
+                            finalBytes.set(encryptedPayload, coverBytes.length);
+                            finalBytes.set(lenBytes, coverBytes.length + blockLen);
+                            finalBytes.set(footerBytes, coverBytes.length + blockLen + 4);
+                            
+                            downloadBlob(finalBytes, outName);
+                            addLog(`Скрытый контейнер собран методом Overlay. Файл сохранен: ${outName}`, 'success');
+                        }
                     }
                 }
             } catch (err) {
@@ -1624,89 +1444,92 @@
                 const targetFile = fileInput.files[0];
                 const rawBytes = await readFileAsBytes(targetFile);
                 const totalLen = rawBytes.length;
-                let encryptedPayload;
+                let encryptedPayload = null;
 
-                // 1. Проверка на Overlay-контейнер "PXED" -> [80, 88, 69, 68] в хвосте
-                let isOverlay = false;
-                if (totalLen >= 12) {
-                    const footer = rawBytes.slice(totalLen - 4);
-                    if (footer[0] === 80 && footer[1] === 88 && footer[2] === 69 && footer[3] === 68) {
-                        isOverlay = true;
-                    }
-                }
+                // 1. Попытка десериализации MP4/MOV структуры (Атом 'free')
+                encryptedPayload = findHiddenPayloadInMP4(rawBytes);
 
-                if (isOverlay) {
-                    addLog("Формат автоопределен: Медиа-Контейнер (Overlay).", 'info');
-                    const sizeBytes = rawBytes.slice(totalLen - 8, totalLen - 4);
-                    const blockLen = bytesToUint32LE(sizeBytes);
-                    
-                    if (blockLen <= 0 || blockLen > totalLen - 8) {
-                        throw new Error("Неверная длина метаданных Overlay или файл поврежден.");
-                    }
-                    
-                    encryptedPayload = rawBytes.slice(totalLen - 8 - blockLen, totalLen - 8);
-                    addLog(`Извлечен скрытый контейнер. Размер блока: ${humanSize(blockLen)}`, 'success');
-                } else if (targetFile.type === 'image/png' || targetFile.name.endsWith('.png')) {
-                    addLog("Формат автоопределен: PNG Изображение. Запуск многофакторной экстракции...", 'info');
-                    const coverImg = await loadImageFromFile(targetFile);
-                    
-                    const canvas = document.createElement('canvas');
-                    canvas.width = coverImg.width;
-                    canvas.height = coverImg.height;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(coverImg, 0, 0);
-                    
-                    // Сначала пробуем извлечь спектральным методом DCT
-                    try {
-                        addLog("Попытка спектрального декодирования DCT...", 'info');
-                        encryptedPayload = extractDCTFromCanvas(canvas);
-                        addLog("Успешно извлечены спектральные метаданные методом DCT!", "success");
-                    } catch (dctErr) {
-                        addLog(`Инфо: Спектральный анализ DCT не дал результатов (${dctErr.message}). Переключаемся на пространственный LSB...`, 'warning');
-                        try {
-                            encryptedPayload = extractLSBFromCanvas(canvas);
-                            addLog("Успешно извлечены пиксельные метаданные методом LSB!", "success");
-                        } catch (lsbErr) {
-                            throw new Error("Стего-анализ завершился неудачей. Изображение не содержит распознаваемых метаданных DCT или LSB.");
+                if (encryptedPayload) {
+                    addLog("Формат автоопределен: Структурный MP4/MOV медиа-контейнер (Atom Hiding).", 'success');
+                } else {
+                    // 2. Попытка поиска Overlay в конце файла
+                    let isOverlay = false;
+                    if (totalLen >= 12) {
+                        const footer = rawBytes.slice(totalLen - 4);
+                        if (footer[0] === 80 && footer[1] === 88 && footer[2] === 69 && footer[3] === 68) {
+                            isOverlay = true;
                         }
                     }
-                } else {
-                    addLog("Формат автоопределен: Бинарный .enc архив.", 'info');
-                    const isMagicOk = rawBytes[0] === MAGIC_HEADER[0] &&
-                                      rawBytes[1] === MAGIC_HEADER[1] &&
-                                      rawBytes[2] === MAGIC_HEADER[2] &&
-                                      rawBytes[3] === MAGIC_HEADER[3];
-                    if (isMagicOk) {
-                        encryptedPayload = rawBytes.slice(MAGIC_HEADER.length);
+
+                    if (isOverlay) {
+                        addLog("Формат автоопределен: Медиа-Контейнер общего типа (Overlay).", 'success');
+                        const sizeBytes = rawBytes.slice(totalLen - 8, totalLen - 4);
+                        const blockLen = bytesToUint32LE(sizeBytes);
+                        
+                        if (blockLen <= 0 || blockLen > totalLen - 8) {
+                            throw new Error("Неверная длина метаданных Overlay или файл поврежден.");
+                        }
+                        
+                        encryptedPayload = rawBytes.slice(totalLen - 8 - blockLen, totalLen - 8);
+                    } else if (targetFile.type === 'image/png' || targetFile.name.endsWith('.png')) {
+                        // 3. Попытка чтения классического пиксельного LSB для PNG
+                        addLog("Формат автоопределен: PNG Изображение (LSB).", 'info');
+                        const coverImg = await loadImageFromFile(targetFile);
+                        
+                        const canvas = document.createElement('canvas');
+                        canvas.width = coverImg.width;
+                        canvas.height = coverImg.height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(coverImg, 0, 0);
+                        
+                        encryptedPayload = extractLSBFromCanvas(canvas);
                     } else {
-                        addLog("Предупреждение: Сигнатура PXEN отсутствует, пробуем использовать сырой поток.", 'warning');
-                        encryptedPayload = rawBytes;
+                        // 4. Попытка чтения как сырого .enc файла
+                        addLog("Формат автоопределен: Бинарный .enc архив.", 'info');
+                        const isMagicOk = rawBytes[0] === MAGIC_HEADER[0] &&
+                                          rawBytes[1] === MAGIC_HEADER[1] &&
+                                          rawBytes[2] === MAGIC_HEADER[2] &&
+                                          rawBytes[3] === MAGIC_HEADER[3];
+                        if (isMagicOk) {
+                            encryptedPayload = rawBytes.slice(MAGIC_HEADER.length);
+                        } else {
+                            addLog("Предупреждение: Сигнатура PXEN отсутствует, используем сырой поток.", 'warning');
+                            encryptedPayload = rawBytes;
+                        }
                     }
                 }
 
                 addLog("Запуск квантового дешифратора...", 'info');
+                // 1. Unpack header structured components
                 const { kyberCipherText, nonce, aesCipherText, header } = unpackEncryptedBlock(encryptedPayload);
 
+                // 2. Kyber Decapsulation of Shared Secret
                 addLog("Декапсуляция общего сессионного ключа (ML-KEM-768)...", 'info');
                 const sharedSecret = ml_kem768.decapsulate(kyberCipherText, privateKey);
 
+                // 3. Symmetric decryption of cargo envelope
                 addLog("Симметричное дешифрование (AES-256-GCM)...", 'info');
                 const innerData = await aesGcmDecrypt(sharedSecret, nonce, aesCipherText, header);
 
+                // 4. Extract nested components
                 const { filename, extension, data, storedHash } = unpackInnerData(innerData);
 
+                // 5. Validation Integrity
                 addLog("Контроль целостности по хеш-сумме SHA-256...", 'info');
                 const computedHash = await sha256(data);
                 if (!compareDigests(computedHash, storedHash)) {
                     throw new Error("Аутентичность контейнера нарушена! Обнаружено расхождение хеш-суммы.");
                 }
 
+                // Successful result handling
                 addLog("Проверка подлинности пройдена. Данные аутентичны.", 'success');
                 state.lastDecryptedData = data;
                 state.lastDecryptedFilename = filename + extension;
 
+                // Update UI elements
                 document.getElementById('decrypt-meta').innerText = `${filename}${extension} (${humanSize(data.length)})`;
                 
+                // Show text preview if txt
                 const textContainer = document.getElementById('decrypt-text-preview-container');
                 if (extension.toLowerCase() === '.txt') {
                     const text = new TextDecoder().decode(data);
@@ -1719,6 +1542,7 @@
                 document.getElementById('decrypt-result-box').classList.remove('hidden');
                 addLog(`Расшифрование завершено успешно! Содержимое: ${filename}${extension}`, 'success');
 
+                // Auto-bind download button
                 document.getElementById('btn-download-decrypted').onclick = () => {
                     downloadBlob(state.lastDecryptedData, state.lastDecryptedFilename);
                     addLog(`Файл '${state.lastDecryptedFilename}' успешно сохранен.`, 'info');
