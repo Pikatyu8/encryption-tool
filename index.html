@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PixelEncoder v6.6 - Post-Quantum Web Edition</title>
+    <title>PixelEncoder v6.7 - Post-Quantum Web Edition</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
@@ -26,9 +26,9 @@
                 </div>
                 <div>
                     <h1 class="text-xl font-bold tracking-tight text-white flex items-center gap-2">
-                        PixelEncoder <span class="text-xs bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded">v6.6.0-Web</span>
+                        PixelEncoder <span class="text-xs bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded">v6.7.0-Web</span>
                     </h1>
-                    <p class="text-xs text-slate-400">Post-Quantum Cryptography & LSB Steganography (ML-KEM-768 / AES-GCM)</p>
+                    <p class="text-xs text-slate-400">Post-Quantum Cryptography & Multi-Format Steganography (ML-KEM-768 / AES-GCM)</p>
                 </div>
             </div>
             <div class="flex items-center space-x-2 text-xs bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-full">
@@ -47,9 +47,8 @@
             <h2 class="text-base font-semibold text-white mb-2">О веб-версии</h2>
             <p class="text-sm text-slate-300 leading-relaxed max-w-4xl">
                 Эта утилита является клиентским аналогом консольной версии на Python. Все криптографические операции выполняются 
-                <span class="text-emerald-400 font-semibold">исключительно внутри вашего браузера</span>. Ваши файлы, сообщения и ключи 
-                никогда не передаются на сервер. Полная совместимость: файлы <code class="bg-slate-900 px-1.5 py-0.5 rounded text-sky-400">.enc</code> 
-                и <code class="bg-slate-900 px-1.5 py-0.5 rounded text-sky-400">.png</code> (стего-карты) можно свободно шифровать в вебе и расшифровывать на ПК, и наоборот.
+                <span class="text-emerald-400 font-semibold">исключительно внутри вашего браузера</span>. Полная совместимость: файлы <code class="bg-slate-900 px-1.5 py-0.5 rounded text-sky-400">.enc</code> 
+                и стего-файлы любых медиаформатов можно свободно расшифровывать на ПК, и наоборот.
             </p>
         </div>
 
@@ -134,20 +133,57 @@
                             <label class="border border-slate-800 p-4 rounded-xl cursor-pointer hover:bg-slate-900/50 flex items-start gap-3 transition">
                                 <input type="radio" name="output-format" value="png" onchange="toggleOutputFormat()" class="mt-1 accent-emerald-500">
                                 <div>
-                                    <span class="block text-sm font-semibold text-white">Стеганография .png</span>
-                                    <span class="block text-xs text-slate-400 mt-1">Внедрение скрытых данных в пиксели произвольного изображения.</span>
+                                    <span class="block text-sm font-semibold text-white">Стеганография (Скрытие в медиа)</span>
+                                    <span class="block text-xs text-slate-400 mt-1">Внедрение зашифрованных данных в изображения, аудио или видео файлы.</span>
                                 </div>
                             </label>
                         </div>
 
-                        <div id="cover-file-container" class="hidden border-t border-slate-800/60 pt-4 space-y-3">
-                            <label class="block text-xs font-medium text-slate-400">Выберите оригинальное изображение-носитель (PNG / JPG)</label>
-                            <input type="file" id="cover-file-input" accept="image/*" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-sm text-slate-300 cursor-pointer">
-                            <div id="cover-preview" class="hidden flex items-center gap-4 p-3 bg-slate-950 rounded-lg border border-slate-800">
-                                <img id="cover-preview-img" class="h-16 w-16 object-cover rounded border border-slate-800">
-                                <div class="text-xs">
-                                    <p id="cover-dimensions" class="text-slate-300 font-medium"></p>
-                                    <p id="cover-capacity" class="text-slate-400 mt-0.5"></p>
+                        <div id="cover-file-container" class="hidden border-t border-slate-800/60 pt-4 space-y-4">
+                            <div class="space-y-2">
+                                <label class="block text-xs font-medium text-slate-400">Стего-метод (Способ сокрытия)</label>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <label class="border border-slate-800 p-3 rounded-xl cursor-pointer hover:bg-slate-900/40 flex items-start gap-2.5 transition">
+                                        <input type="radio" name="stego-method" value="lsb" checked onchange="toggleStegoMethod()" class="mt-0.5 accent-emerald-500">
+                                        <div>
+                                            <span class="block text-xs font-semibold text-white">Пиксельный LSB (PNG/BMP)</span>
+                                            <span class="block text-[10px] text-slate-400 mt-0.5">Классическое внедрение в младшие биты пикселей. Поддерживает только PNG/BMP.</span>
+                                        </div>
+                                    </label>
+                                    <label class="border border-slate-800 p-3 rounded-xl cursor-pointer hover:bg-slate-900/40 flex items-start gap-2.5 transition">
+                                        <input type="radio" name="stego-method" value="overlay" onchange="toggleStegoMethod()" class="mt-0.5 accent-emerald-500">
+                                        <div>
+                                            <span class="block text-xs font-semibold text-white">Медиа-Контейнер / Overlay</span>
+                                            <span class="block text-[10px] text-slate-400 mt-0.5">Внедрение в структуру файлов MP4, MP3, WAV, AVI, OGG, MOV, JPG, PNG без потери качества воспроизведения.</span>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="space-y-1.5">
+                                <label class="block text-xs font-medium text-slate-400">Выберите оригинальный файл-носитель (видео, аудио или картинка)</label>
+                                <input type="file" id="cover-file-input" accept="image/*,video/*,audio/*,.mp4,.avi,.mov,.mp3,.wav,.ogg" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-sm text-slate-300 cursor-pointer">
+                                <span class="block text-[10px] text-slate-500">Рекомендуемый лимит размера: до 150 МБ (зависит от RAM браузера)</span>
+                            </div>
+
+                            <!-- PREVIEW -->
+                            <div id="cover-preview" class="hidden flex flex-col gap-3 p-4 bg-slate-950 rounded-xl border border-slate-800">
+                                <div class="flex items-center gap-4">
+                                    <div id="preview-media-container" class="h-16 w-16 flex items-center justify-center bg-slate-900 rounded border border-slate-800 overflow-hidden">
+                                        <img id="cover-preview-img" class="h-full w-full object-cover hidden">
+                                        <video id="cover-preview-video" class="h-full w-full object-cover hidden" muted></video>
+                                        <div id="cover-preview-audio-icon" class="text-slate-500 hidden">
+                                            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"></path></svg>
+                                        </div>
+                                    </div>
+                                    <div class="text-xs space-y-1 flex-grow truncate">
+                                        <p id="cover-filename" class="text-slate-300 font-semibold truncate"></p>
+                                        <p id="cover-dimensions" class="text-slate-400"></p>
+                                        <p id="cover-capacity" class="text-emerald-400 font-medium mt-0.5"></p>
+                                    </div>
+                                </div>
+                                <div id="audio-preview-player-container" class="hidden">
+                                    <audio id="cover-preview-audio" controls class="w-full h-8 bg-slate-900 rounded"></audio>
                                 </div>
                             </div>
                         </div>
@@ -162,8 +198,8 @@
                 <div id="decrypt-tab" class="tab-panel hidden space-y-6">
                     <div class="bg-slate-900/30 border border-slate-900 p-6 rounded-2xl space-y-4">
                         <h3 class="text-lg font-semibold text-white">1. Входной файл</h3>
-                        <label class="block text-xs font-medium text-slate-400">Перетащите зашифрованный .enc или стего-изображение .png</label>
-                        <input type="file" id="dec-input-file" accept=".enc,.png" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-4 text-sm text-slate-300 cursor-pointer">
+                        <label class="block text-xs font-medium text-slate-400">Перетащите зашифрованный .enc, стего-изображение, либо стего-аудио/видео (.mp4, .mp3, .wav, .avi, .ogg, .mov, .jpg)</label>
+                        <input type="file" id="dec-input-file" accept=".enc,.png,.jpg,.jpeg,.mp4,.avi,.mov,.mp3,.wav,.ogg" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-4 text-sm text-slate-300 cursor-pointer">
                     </div>
 
                     <div class="bg-slate-900/30 border border-slate-900 p-6 rounded-2xl space-y-4">
@@ -367,7 +403,7 @@
 
         // Initialize App
         window.addEventListener('DOMContentLoaded', () => {
-            addLog("PixelEncoder v6.6 Post-Quantum Web-Edition инициализирован.", "info");
+            addLog("PixelEncoder v6.7.0 Post-Quantum Web-Edition инициализирован.", "info");
             loadStateFromStorage();
             refreshContactsUI();
             togglePayloadSource();
@@ -412,17 +448,87 @@
                 const file = e.target.files[0];
                 if (file) {
                     try {
-                        const img = await loadImageFromFile(file);
                         const previewImg = document.getElementById('cover-preview-img');
-                        previewImg.src = URL.createObjectURL(file);
-                        document.getElementById('cover-dimensions').innerText = `Разрешение: ${img.width} × ${img.height} px`;
+                        const previewVid = document.getElementById('cover-preview-video');
+                        const previewAudioIcon = document.getElementById('cover-preview-audio-icon');
+                        const previewAudio = document.getElementById('cover-preview-audio');
+                        const audioContainer = document.getElementById('audio-preview-player-container');
                         
-                        const capacityBytes = Math.floor((img.width * img.height * 3) / 8);
-                        document.getElementById('cover-capacity').innerText = `Лимит емкости LSB: ~${humanSize(capacityBytes)}`;
+                        // Hide all previews initially
+                        previewImg.classList.add('hidden');
+                        previewVid.classList.add('hidden');
+                        previewAudioIcon.classList.add('hidden');
+                        audioContainer.classList.add('hidden');
+                        
+                        const fileUrl = URL.createObjectURL(file);
+                        document.getElementById('cover-filename').innerText = `Файл: ${file.name} (${humanSize(file.size)})`;
+                        document.getElementById('cover-dimensions').innerText = '';
+                        document.getElementById('cover-capacity').innerText = '';
+
+                        const fileType = file.type;
+                        const extension = file.name.split('.').pop().toLowerCase();
+                        
+                        let detectedType = 'other';
+                        if (fileType.startsWith('image/') || ['png', 'jpg', 'jpeg', 'webp', 'bmp', 'gif'].includes(extension)) {
+                            detectedType = 'image';
+                        } else if (fileType.startsWith('video/') || ['mp4', 'avi', 'mov'].includes(extension)) {
+                            detectedType = 'video';
+                        } else if (fileType.startsWith('audio/') || ['mp3', 'wav', 'ogg'].includes(extension)) {
+                            detectedType = 'audio';
+                        }
+
+                        if (detectedType === 'image') {
+                            const img = await loadImageFromFile(file);
+                            previewImg.src = fileUrl;
+                            previewImg.classList.remove('hidden');
+                            document.getElementById('cover-dimensions').innerText = `Разрешение: ${img.width} × ${img.height} px`;
+                            const capacityBytes = Math.floor((img.width * img.height * 3) / 8);
+                            document.getElementById('cover-capacity').innerText = `Емкость LSB: ~${humanSize(capacityBytes)}`;
+                            
+                            // Enable both LSB and Overlay
+                            document.querySelector('input[name="stego-method"][value="lsb"]').disabled = false;
+                            addLog(`Носитель изменен: ${file.name} (Изображение)`, 'info');
+                        } else if (detectedType === 'video') {
+                            previewVid.src = fileUrl;
+                            previewVid.classList.remove('hidden');
+                            previewVid.load();
+                            
+                            document.getElementById('cover-dimensions').innerText = `Видео-контейнер`;
+                            document.getElementById('cover-capacity').innerText = `Емкость Overlay: Не ограничена`;
+                            
+                            // Force select Overlay since LSB is impossible for video in browser
+                            document.querySelector('input[name="stego-method"][value="overlay"]').checked = true;
+                            document.querySelector('input[name="stego-method"][value="lsb"]').disabled = true;
+                            toggleStegoMethod();
+                            
+                            addLog(`Носитель изменен: ${file.name} (Видео). Выбран метод Overlay.`, 'info');
+                        } else if (detectedType === 'audio') {
+                            previewAudioIcon.classList.remove('hidden');
+                            previewAudio.src = fileUrl;
+                            audioContainer.classList.remove('hidden');
+                            previewAudio.load();
+                            
+                            document.getElementById('cover-dimensions').innerText = `Аудио-контейнер`;
+                            document.getElementById('cover-capacity').innerText = `Емкость Overlay: Не ограничена`;
+                            
+                            // Force select Overlay since LSB is impossible for audio in browser
+                            document.querySelector('input[name="stego-method"][value="overlay"]').checked = true;
+                            document.querySelector('input[name="stego-method"][value="lsb"]').disabled = true;
+                            toggleStegoMethod();
+
+                            addLog(`Носитель изменен: ${file.name} (Аудио). Выбран метод Overlay.`, 'info');
+                        } else {
+                            document.getElementById('cover-dimensions').innerText = `Контейнер общего формата`;
+                            document.getElementById('cover-capacity').innerText = `Емкость Overlay: Не ограничена`;
+                            document.querySelector('input[name="stego-method"][value="overlay"]').checked = true;
+                            document.querySelector('input[name="stego-method"][value="lsb"]').disabled = true;
+                            toggleStegoMethod();
+                            addLog(`Файл-носитель общего типа: ${file.name}. Выбран метод Overlay.`, 'warning');
+                        }
+
                         document.getElementById('cover-preview').classList.remove('hidden');
-                        addLog(`Носитель стего-карты изменен: ${file.name} (Макс. емкость: ${humanSize(capacityBytes)})`, 'info');
                     } catch (err) {
-                        addLog("Не удалось загрузить изображение носителя: " + err, "error");
+                        addLog("Не удалось загрузить файл носителя: " + err, "error");
                     }
                 }
             });
@@ -482,6 +588,19 @@
             const i = Math.min(Math.floor(Math.log(size) / Math.log(1024)), units.length - 1);
             const val = size / Math.pow(1024, i);
             return i > 0 ? `${val.toFixed(1)} ${units[i]}` : `${size} B`;
+        }
+
+        function uint32ToBytesLE(num) {
+            const arr = new Uint8Array(4);
+            arr[0] = num & 0xff;
+            arr[1] = (num >> 8) & 0xff;
+            arr[2] = (num >> 16) & 0xff;
+            arr[3] = (num >> 24) & 0xff;
+            return arr;
+        }
+
+        function bytesToUint32LE(bytes) {
+            return bytes[0] | (bytes[1] << 8) | (bytes[2] << 16) | (bytes[3] << 24);
         }
 
         // State & LocalStorage
@@ -707,6 +826,11 @@
             } else {
                 coverContainer.classList.add('hidden');
             }
+        };
+
+        window.toggleStegoMethod = () => {
+            const method = document.querySelector('input[name="stego-method"]:checked').value;
+            addLog(`Переключен метод стеганографии: ${method === 'lsb' ? 'Пиксельный LSB' : 'Медиа-Контейнер (Overlay)'}`, 'info');
         };
 
         window.copyToClipboard = (elId) => {
@@ -1132,35 +1256,62 @@
                     // Steganography injection
                     const coverInput = document.getElementById('cover-file-input');
                     if (coverInput.files.length === 0) {
-                        alert("Загрузите исходное изображение для стеганографии.");
+                        alert("Загрузите исходный файл-носитель для стеганографии.");
                         return;
                     }
                     
-                    addLog("Запуск генератора стего-контейнера...", 'info');
-                    const originalImg = await loadImageFromFile(coverInput.files[0]);
+                    const coverFile = coverInput.files[0];
+                    const stegoMethod = document.querySelector('input[name="stego-method"]:checked').value;
                     
-                    // Create base canvas
-                    const canvas = document.createElement('canvas');
-                    canvas.width = originalImg.width;
-                    canvas.height = originalImg.height;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(originalImg, 0, 0);
-                    
-                    // Process pixel adjustments
-                    const stegoCanvas = embedLSBInCanvas(canvas, originalImg, encryptedPayload);
-                    
-                    const outName = `stego_${filename}.png`;
-                    stegoCanvas.toBlob((blob) => {
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement('a');
-                        a.href = url;
-                        a.download = outName;
-                        document.body.appendChild(a);
-                        a.click();
-                        document.body.removeChild(a);
-                        URL.revokeObjectURL(url);
-                        addLog(`Стего-карта собрана без потерь данных. Файл сохранен: ${outName}`, 'success');
-                    }, 'image/png'); // Force PNG lossless compression
+                    const extDot = coverFile.name.lastIndexOf('.');
+                    const coverExt = extDot !== -1 ? coverFile.name.substring(extDot) : '';
+                    const coverNameOnly = extDot !== -1 ? coverFile.name.substring(0, extDot) : coverFile.name;
+                    const outName = `stego_${coverNameOnly}${coverExt}`;
+
+                    if (stegoMethod === 'lsb') {
+                        addLog("Запуск генератора стего-карты (Pixel LSB)...", 'info');
+                        const originalImg = await loadImageFromFile(coverFile);
+                        
+                        // Create base canvas
+                        const canvas = document.createElement('canvas');
+                        canvas.width = originalImg.width;
+                        canvas.height = originalImg.height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(originalImg, 0, 0);
+                        
+                        // Process pixel adjustments
+                        const stegoCanvas = embedLSBInCanvas(canvas, originalImg, encryptedPayload);
+                        
+                        stegoCanvas.toBlob((blob) => {
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = outName.endsWith('.png') ? outName : outName + '.png'; // Force PNG for Canvas LSB
+                            document.body.appendChild(a);
+                            a.click();
+                            document.body.removeChild(a);
+                            URL.revokeObjectURL(url);
+                            addLog(`Стего-карта (LSB) собрана. Файл сохранен: ${a.download}`, 'success');
+                        }, 'image/png'); // Force PNG lossless compression
+                    } else {
+                        // Overlay Steganography (Any media format: mp4, avi, mov, mp3, wav, ogg, jpg, png, etc.)
+                        addLog(`Сборка медиа-контейнера (Overlay) для ${coverFile.name}...`, 'info');
+                        const coverBytes = await readFileAsBytes(coverFile);
+                        
+                        // Create overlay package: [coverBytes] + [encryptedPayload] + [blockLen (4B)] + [magic PXED (4B)]
+                        const blockLen = encryptedPayload.length;
+                        const lenBytes = uint32ToBytesLE(blockLen);
+                        const footerBytes = new Uint8Array([80, 88, 69, 68]); // "PXED"
+                        
+                        const finalBytes = new Uint8Array(coverBytes.length + blockLen + 4 + 4);
+                        finalBytes.set(coverBytes, 0);
+                        finalBytes.set(encryptedPayload, coverBytes.length);
+                        finalBytes.set(lenBytes, coverBytes.length + blockLen);
+                        finalBytes.set(footerBytes, coverBytes.length + blockLen + 4);
+                        
+                        downloadBlob(finalBytes, outName);
+                        addLog(`Скрытый контейнер собран без потерь качества. Файл сохранен: ${outName}`, 'success');
+                    }
                 }
             } catch (err) {
                 addLog("Шифрование прервано из-за ошибки: " + err, 'error');
@@ -1173,7 +1324,7 @@
             const privKeyHex = document.getElementById('dec-privkey-hex').value.trim();
 
             if (fileInput.files.length === 0) {
-                alert("Укажите входной зашифрованный файл (.enc или стего .png).");
+                alert("Укажите входной зашифрованный файл.");
                 return;
             }
             if (!privKeyHex) {
@@ -1195,11 +1346,32 @@
             addLog("Загрузка шифротекста в оперативную память...", 'info');
             try {
                 const targetFile = fileInput.files[0];
+                const rawBytes = await readFileAsBytes(targetFile);
+                const totalLen = rawBytes.length;
                 let encryptedPayload;
 
-                // Format auto-detection
-                if (targetFile.type === 'image/png' || targetFile.name.endsWith('.png')) {
-                    addLog("Формат автоопределен: PNG Стего-Изображение.", 'info');
+                // 1. Check for Overlay footer "PXED" -> [80, 88, 69, 68]
+                let isOverlay = false;
+                if (totalLen >= 12) {
+                    const footer = rawBytes.slice(totalLen - 4);
+                    if (footer[0] === 80 && footer[1] === 88 && footer[2] === 69 && footer[3] === 68) {
+                        isOverlay = true;
+                    }
+                }
+
+                if (isOverlay) {
+                    addLog("Формат автоопределен: Медиа-Контейнер (Overlay).", 'info');
+                    const sizeBytes = rawBytes.slice(totalLen - 8, totalLen - 4);
+                    const blockLen = bytesToUint32LE(sizeBytes);
+                    
+                    if (blockLen <= 0 || blockLen > totalLen - 8) {
+                        throw new Error("Неверная длина метаданных Overlay или файл поврежден.");
+                    }
+                    
+                    encryptedPayload = rawBytes.slice(totalLen - 8 - blockLen, totalLen - 8);
+                    addLog(`Извлечен скрытый контейнер. Размер блока: ${humanSize(blockLen)}`, 'success');
+                } else if (targetFile.type === 'image/png' || targetFile.name.endsWith('.png')) {
+                    addLog("Формат автоопределен: PNG Стего-Изображение (LSB).", 'info');
                     const coverImg = await loadImageFromFile(targetFile);
                     
                     const canvas = document.createElement('canvas');
@@ -1212,8 +1384,6 @@
                     encryptedPayload = extractLSBFromCanvas(canvas);
                 } else {
                     addLog("Формат автоопределен: Бинарный .enc архив.", 'info');
-                    const rawBytes = await readFileAsBytes(targetFile);
-                    
                     // Match "PXEN" magic bytes
                     const isMagicOk = rawBytes[0] === MAGIC_HEADER[0] &&
                                       rawBytes[1] === MAGIC_HEADER[1] &&
