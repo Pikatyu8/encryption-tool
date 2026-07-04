@@ -1,3 +1,5 @@
+--- START OF FILE Paste July 04, 2026 - 8:32PM ---
+
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -160,6 +162,17 @@
                                 </div>
                             </div>
 
+                            <!-- Настройка глубины LSB при шифровании -->
+                            <div id="lsb-depth-container" class="hidden p-4 bg-slate-950/60 border border-slate-800 rounded-xl space-y-1.5">
+                                <label class="block text-xs font-medium text-slate-400">Глубина пиксельного LSB (бит на канал):</label>
+                                <select id="lsb-bit-depth" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-emerald-500/50">
+                                    <option value="1" selected>1 бит (Максимальная скрытность, минимальная емкость)</option>
+                                    <option value="2">2 бита (Хороший баланс емкости и скрытности)</option>
+                                    <option value="3">3 бита (Высокая емкость, умеренный визуальный шум)</option>
+                                    <option value="4">4 бита (Максимальная емкость, сильные искажения цвета)</option>
+                                </select>
+                            </div>
+
                             <div class="space-y-1.5">
                                 <label class="block text-xs font-medium text-slate-400">Выберите оригинальный файл-носитель (видео, аудио или картинка)</label>
                                 <input type="file" id="cover-file-input" accept="image/*,video/*,audio/*,.mp4,.avi,.mov,.mp3,.wav,.ogg" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-sm text-slate-300 cursor-pointer">
@@ -200,6 +213,17 @@
                         <h3 class="text-lg font-semibold text-white">1. Входной файл</h3>
                         <label class="block text-xs font-medium text-slate-400">Перетащите зашифрованный .enc, стего-изображение, либо стего-аудио/видео (.mp4, .mp3, .wav, .avi, .ogg, .mov, .jpg)</label>
                         <input type="file" id="dec-input-file" accept=".enc,.png,.jpg,.jpeg,.mp4,.avi,.mov,.mp3,.wav,.ogg" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-4 text-sm text-slate-300 cursor-pointer">
+                        
+                        <!-- Настройка глубины LSB при дешифровании -->
+                        <div id="dec-lsb-depth-container" class="hidden p-4 bg-slate-950/60 border border-slate-800 rounded-xl space-y-1.5 mt-2">
+                            <label class="block text-xs font-medium text-slate-400">Укажите глубину LSB, использованную при шифровании:</label>
+                            <select id="dec-lsb-bit-depth" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-sky-500/50">
+                                <option value="1" selected>1 бит на канал</option>
+                                <option value="2">2 бита на канал</option>
+                                <option value="3">3 бита на канал</option>
+                                <option value="4">4 бита на канал</option>
+                            </select>
+                        </div>
                     </div>
 
                     <div class="bg-slate-900/30 border border-slate-900 p-6 rounded-2xl space-y-4">
@@ -409,7 +433,9 @@
             myProfile: null,
             contacts: {},
             lastDecryptedData: null,
-            lastDecryptedFilename: 'message.txt'
+            lastDecryptedFilename: 'message.txt',
+            coverWidth: null,   // Tracks loaded image width for capacity recalculation
+            coverHeight: null   // Tracks loaded image height for capacity recalculation
         };
 
         // Initialize App
@@ -420,6 +446,22 @@
             togglePayloadSource();
             toggleOutputFormat();
             
+            // Dynamic capacity update listener
+            document.getElementById('lsb-bit-depth').addEventListener('change', () => {
+                updateCapacityDisplay();
+            });
+
+            // Visibility switcher for Decrypt LSB Depth select
+            document.getElementById('dec-input-file').addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                const container = document.getElementById('dec-lsb-depth-container');
+                if (file && (file.type === 'image/png' || file.name.endsWith('.png'))) {
+                    container.classList.remove('hidden');
+                } else {
+                    container.classList.add('hidden');
+                }
+            });
+
             // File input logic bindings
             document.getElementById('enc-pubkey-file').addEventListener('change', async (e) => {
                 const file = e.target.files[0];
@@ -489,12 +531,16 @@
 
                         if (detectedType === 'image') {
                             const img = await loadImageFromFile(file);
+                            state.coverWidth = img.width;
+                            state.coverHeight = img.height;
+                            
                             previewImg.src = fileUrl;
                             previewImg.classList.remove('hidden');
                             document.getElementById('cover-dimensions').innerText = `Разрешение: ${img.width} × ${img.height} px`;
-                            const capacityBytes = Math.floor((img.width * img.height * 3) / 8);
-                            document.getElementById('cover-capacity').innerText = `Емкость LSB: ~${humanSize(capacityBytes)} | Контейнер: Не ограничена`;
                             
+                            updateCapacityDisplay();
+                            
+                            document.getElementById('lsb-depth-container').classList.remove('hidden');
                             document.querySelector('input[name="stego-method"][value="lsb"]').disabled = false;
                             addLog(`Носитель изменен: ${file.name} (Изображение)`, 'info');
                         } else if (detectedType === 'video') {
@@ -504,6 +550,7 @@
                             
                             document.getElementById('cover-dimensions').innerText = `Video Container`;
                             document.getElementById('cover-capacity').innerText = `Емкость контейнера: Без ограничений`;
+                            document.getElementById('lsb-depth-container').classList.add('hidden');
                             
                             document.querySelector('input[name="stego-method"][value="container"]').checked = true;
                             document.querySelector('input[name="stego-method"][value="lsb"]').disabled = true;
@@ -518,6 +565,7 @@
                             
                             document.getElementById('cover-dimensions').innerText = `Audio Container`;
                             document.getElementById('cover-capacity').innerText = `Емкость контейнера: Без ограничений`;
+                            document.getElementById('lsb-depth-container').classList.add('hidden');
                             
                             document.querySelector('input[name="stego-method"][value="container"]').checked = true;
                             document.querySelector('input[name="stego-method"][value="lsb"]').disabled = true;
@@ -527,6 +575,8 @@
                         } else {
                             document.getElementById('cover-dimensions').innerText = `Контейнер общего формата`;
                             document.getElementById('cover-capacity').innerText = `Емкость контейнера: Без ограничений`;
+                            document.getElementById('lsb-depth-container').classList.add('hidden');
+                            
                             document.querySelector('input[name="stego-method"][value="container"]').checked = true;
                             document.querySelector('input[name="stego-method"][value="lsb"]').disabled = true;
                             toggleStegoMethod();
@@ -540,6 +590,15 @@
                 }
             });
         });
+
+        // Dynamic Capacity Output recalculation
+        function updateCapacityDisplay() {
+            if (state.coverWidth && state.coverHeight) {
+                const k = parseInt(document.getElementById('lsb-bit-depth').value) || 1;
+                const capacityBytes = Math.floor((state.coverWidth * state.coverHeight * 3 * k) / 8);
+                document.getElementById('cover-capacity').innerText = `Емкость LSB: ~${humanSize(capacityBytes)} | Контейнер: Не ограничена`;
+            }
+        }
 
         // Logging
         function addLog(message, type = 'info') {
@@ -618,6 +677,7 @@
             }));
         }
 
+        // Load profiles from browser storage
         function loadStateFromStorage() {
             try {
                 const saved = localStorage.getItem('pixelencoder_web_state');
@@ -830,6 +890,7 @@
             const coverContainer = document.getElementById('cover-file-container');
             if (format === 'png') {
                 coverContainer.classList.remove('hidden');
+                toggleStegoMethod();
             } else {
                 coverContainer.classList.add('hidden');
             }
@@ -837,6 +898,18 @@
 
         window.toggleStegoMethod = () => {
             const method = document.querySelector('input[name="stego-method"]:checked').value;
+            const depthContainer = document.getElementById('lsb-depth-container');
+            
+            const coverInput = document.getElementById('cover-file-input');
+            const hasCover = coverInput && coverInput.files.length > 0;
+            const extension = hasCover ? coverInput.files[0].name.split('.').pop().toLowerCase() : '';
+            const isImage = ['png', 'jpg', 'jpeg', 'webp', 'bmp', 'gif'].includes(extension);
+
+            if (method === 'lsb' && (!hasCover || isImage)) {
+                depthContainer.classList.remove('hidden');
+            } else {
+                depthContainer.classList.add('hidden');
+            }
             addLog(`Выбран метод скрытия данных: ${method === 'lsb' ? 'Пиксельный LSB' : 'Медиа-Контейнер'}`, 'info');
         };
 
@@ -930,15 +1003,17 @@
             return bits;
         }
 
-        // Stego embeds payload into Canvas pixel components (R,G,B)
+        // Stego embeds payload into Canvas pixel components (R,G,B) with depth (k) support
         function embedLSBInCanvas(canvas, originalImg, payload) {
-            // Check capacity: each pixel can hold 3 bits
+            const k = parseInt(document.getElementById('lsb-bit-depth').value) || 1;
+            
+            // Check capacity: each pixel can hold 3 * k bits
             const totalBits = (4 + payload.length) * 8;
-            const currentCapacity = canvas.width * canvas.height * 3;
+            const currentCapacity = canvas.width * canvas.height * 3 * k;
             
             let workingCanvas = canvas;
             if (currentCapacity < totalBits) {
-                // Resize (Auto scaling to fit cargo dimensions)
+                // Resize (Auto scaling to fit cargo dimensions with bit depth consideration)
                 const scale = Math.ceil(Math.sqrt(totalBits / currentCapacity));
                 addLog(`Контейнер слишком мал. Масштабируем разрешение до ${scale}x...`, 'warning');
                 
@@ -953,7 +1028,7 @@
             const ctx = workingCanvas.getContext('2d');
             const imgData = ctx.getImageData(0, 0, workingCanvas.width, workingCanvas.height);
             const pixelData = imgData.data;
-            const totalCapacityBits = workingCanvas.width * workingCanvas.height * 3;
+            const totalCapacityBits = workingCanvas.width * workingCanvas.height * 3 * k;
             
             // Prepend payload length as 32-bit little endian uint32
             const fullPayload = new Uint8Array(4 + payload.length);
@@ -967,21 +1042,46 @@
             const bits = getPayloadBits(fullPayload, totalCapacityBits);
             let bitIdx = 0;
             
+            // Mask to clear k least significant bits (e.g. if k=2: ~3 => 0xFC)
+            const mask = ~((1 << k) - 1);
+            
             for (let i = 0; i < pixelData.length; i += 4) {
                 if (bitIdx >= totalCapacityBits) break;
-                pixelData[i] = (pixelData[i] & ~1) | bits[bitIdx++];     // R
+                
+                // R
+                let valR = 0;
+                for (let b = 0; b < k; b++) {
+                    const bit = bitIdx < totalCapacityBits ? bits[bitIdx++] : 0;
+                    valR = (valR << 1) | bit;
+                }
+                pixelData[i] = (pixelData[i] & mask) | valR;
+                
                 if (bitIdx >= totalCapacityBits) break;
-                pixelData[i+1] = (pixelData[i+1] & ~1) | bits[bitIdx++]; // G
+                // G
+                let valG = 0;
+                for (let b = 0; b < k; b++) {
+                    const bit = bitIdx < totalCapacityBits ? bits[bitIdx++] : 0;
+                    valG = (valG << 1) | bit;
+                }
+                pixelData[i+1] = (pixelData[i+1] & mask) | valG;
+                
                 if (bitIdx >= totalCapacityBits) break;
-                pixelData[i+2] = (pixelData[i+2] & ~1) | bits[bitIdx++]; // B
+                // B
+                let valB = 0;
+                for (let b = 0; b < k; b++) {
+                    const bit = bitIdx < totalCapacityBits ? bits[bitIdx++] : 0;
+                    valB = (valB << 1) | bit;
+                }
+                pixelData[i+2] = (pixelData[i+2] & mask) | valB;
             }
             
             ctx.putImageData(imgData, 0, 0);
             return workingCanvas;
         }
 
-        // Stego extracts payload from Canvas (static frame)
+        // Stego extracts payload from Canvas with depth (k) support
         function extractLSBFromCanvas(canvas) {
+            const k = parseInt(document.getElementById('dec-lsb-bit-depth').value) || 1;
             const ctx = canvas.getContext('2d');
             const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
             const pixelData = imgData.data;
@@ -989,15 +1089,31 @@
             let pixelIdx = 0;
             let channelIdx = 0; // 0: R, 1: G, 2: B
             
+            let currentChannelBits = [];
+            let bitsExtractedFromChannel = 0;
+            const mask = (1 << k) - 1;
+            
             function nextBit() {
                 if (pixelIdx >= pixelData.length) {
                     throw new Error("Недостаточно пикселей для декодирования метаданных LSB.");
                 }
-                const bit = pixelData[pixelIdx + channelIdx] & 1;
-                channelIdx++;
-                if (channelIdx === 3) {
-                    channelIdx = 0;
-                    pixelIdx += 4; // skip alpha channel
+                
+                if (bitsExtractedFromChannel === 0) {
+                    const val = pixelData[pixelIdx + channelIdx] & mask;
+                    for (let b = k - 1; b >= 0; b--) {
+                        currentChannelBits.push((val >> b) & 1);
+                    }
+                }
+                
+                const bit = currentChannelBits.shift();
+                bitsExtractedFromChannel++;
+                if (bitsExtractedFromChannel === k) {
+                    bitsExtractedFromChannel = 0;
+                    channelIdx++;
+                    if (channelIdx === 3) {
+                        channelIdx = 0;
+                        pixelIdx += 4; // skip alpha channel
+                    }
                 }
                 return bit;
             }
@@ -1014,7 +1130,7 @@
             
             const dataLen = lenBytes[0] | (lenBytes[1] << 8) | (lenBytes[2] << 16) | (lenBytes[3] << 24);
             if (dataLen <= 0 || dataLen > 100 * 1024 * 1024) {
-                throw new Error("Неверная длина метаданных или контейнер не зашифрован.");
+                throw new Error("Неверная длина метаданных. Неверно указана глубина LSB бит или контейнер не зашифрован.");
             }
             
             addLog(`Извлечение зашифрованного контейнера. Ожидаемый объем: ${humanSize(dataLen)}...`, 'info');
@@ -1036,8 +1152,7 @@
             let offset = 0;
             const len = mp4Bytes.length;
             
-            // Если последний верхнеуровневый бокс имеет неопределенный размер 0 (EOF),
-            // перезапишем его размер на фактический, чтобы добавление в конец файла не ломало его структуру.
+            // Adjust EOF box size boundary if needed
             while (offset + 8 <= len) {
                 const size = ((mp4Bytes[offset] << 24) | (mp4Bytes[offset+1] << 16) | (mp4Bytes[offset+2] << 8) | mp4Bytes[offset+3]) >>> 0;
                 if (size === 1) {
@@ -1060,7 +1175,7 @@
                 }
             }
 
-            // Создаем 'free' бокс: [size (4B)] + [type 'free' (4B)] + [magic 'PXED' (4B)] + [payload (N Bytes)]
+            // Create 'free' box: [size (4B)] + [type 'free' (4B)] + [magic 'PXED' (4B)] + [payload (N Bytes)]
             const boxPayloadLen = 4 + payloadBytes.length;
             const totalBoxSize = 8 + boxPayloadLen;
             const freeBox = new Uint8Array(totalBoxSize);
@@ -1085,8 +1200,7 @@
 
             freeBox.set(payloadBytes, 12);
 
-            // Добавляем 'free' контейнер в самый конец файла.
-            // Это не смещает медиа-данные, сохраняя абсолютные смещения stco/co64 нетронутыми.
+            // Append atom structure directly to the end of stream
             const result = new Uint8Array(len + totalBoxSize);
             result.set(mp4Bytes, 0);
             result.set(freeBox, len);
@@ -1095,8 +1209,7 @@
 
         function findHiddenPayloadInMP4(bytes) {
             const len = bytes.length;
-            // Сканируем с конца файла для мгновенного поиска сигнатуры 'freePXED'
-            // 'f' 'r' 'e' 'e' 'P' 'X' 'E' 'D' -> 0x66, 0x72, 0x65, 0x65, 0x50, 0x58, 0x45, 0x44
+            // Back-scanning pattern match for footer marker 'freePXED'
             for (let i = len - 8; i >= 4; i--) {
                 if (bytes[i] === 0x66 &&
                     bytes[i+1] === 0x72 &&
