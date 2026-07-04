@@ -308,13 +308,24 @@
                             <button onclick="clearMyProfile()" class="mt-2 text-xs text-red-400 hover:underline">Очистить и удалить профиль</button>
                         </div>
                         
-                        <div id="manual-profile-form" class="border-t border-slate-800/60 pt-4 space-y-3">
+                        <div id="manual-profile-form" class="border-t border-slate-800/60 pt-4 space-y-4">
                             <h4 class="text-xs font-semibold text-slate-300">Импортировать свой профиль вручную</h4>
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                <input type="text" id="manual-my-name" placeholder="Ваше имя" class="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-300 focus:outline-none">
-                                <input type="file" id="manual-my-pubkey" accept=".kyber" class="bg-slate-950 border border-slate-800 rounded-lg px-3 py-1 text-xs text-slate-300 focus:outline-none file:mr-2 file:py-0.5 file:px-1.5 file:bg-slate-800 file:text-slate-300 cursor-pointer">
+                            <div class="space-y-3">
+                                <div>
+                                    <label class="block text-[10px] text-slate-400 mb-1">Имя владельца</label>
+                                    <input type="text" id="manual-my-name" placeholder="Ваше имя (например, MyKey)" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-300 focus:outline-none">
+                                </div>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <div>
+                                        <label class="block text-[10px] text-slate-400 mb-1">Файл публичного ключа (public.kyber)</label>
+                                        <input type="file" id="manual-my-pubkey" accept=".kyber" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-300 focus:outline-none file:mr-2 file:py-0.5 file:px-1.5 file:rounded file:border-0 file:bg-slate-800 file:text-slate-300 cursor-pointer">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[10px] text-slate-400 mb-1">Файл приватного ключа (private.kyber)</label>
+                                        <input type="file" id="manual-my-privkey" accept=".kyber" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-300 focus:outline-none file:mr-2 file:py-0.5 file:px-1.5 file:rounded file:border-0 file:bg-slate-800 file:text-slate-300 cursor-pointer">
+                                    </div>
+                                </div>
                             </div>
-                            <input type="file" id="manual-my-privkey" accept=".kyber" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-300 focus:outline-none file:mr-2 file:py-0.5 file:px-1.5 file:bg-slate-800 file:text-slate-300 cursor-pointer">
                             <button onclick="saveManualMyProfile()" class="w-full py-2 bg-slate-800 hover:bg-slate-700 text-xs font-medium rounded-lg transition">Импортировать файлы ключей</button>
                         </div>
                     </div>
@@ -403,7 +414,7 @@
 
         // Initialize App
         window.addEventListener('DOMContentLoaded', () => {
-            addLog("PixelEncoder v6.9.0-Web инициализирован.", "info");
+            addLog("PixelEncoder v6.9.0 Post-Quantum Web-Edition инициализирован.", "info");
             loadStateFromStorage();
             refreshContactsUI();
             togglePayloadSource();
@@ -491,30 +502,30 @@
                             previewVid.classList.remove('hidden');
                             previewVid.load();
                             
-                            document.getElementById('cover-dimensions').innerText = `Видео-контейнер`;
-                            document.getElementById('cover-capacity').innerText = `Емкость контейнера: Без потерь`;
+                            document.getElementById('cover-dimensions').innerText = `Video Container`;
+                            document.getElementById('cover-capacity').innerText = `Емкость контейнера: Без ограничений`;
                             
                             document.querySelector('input[name="stego-method"][value="container"]').checked = true;
                             document.querySelector('input[name="stego-method"][value="lsb"]').disabled = true;
                             toggleStegoMethod();
                             
-                            addLog(`Носитель изменен: ${file.name} (Видео). Включение интеллектуального структурирования.`, 'info');
+                            addLog(`Носитель изменен: ${file.name} (Видео). Включен структурный метод.`, 'info');
                         } else if (detectedType === 'audio') {
                             previewAudioIcon.classList.remove('hidden');
                             previewAudio.src = fileUrl;
                             audioContainer.classList.remove('hidden');
                             previewAudio.load();
                             
-                            document.getElementById('cover-dimensions').innerText = `Аудио-контейнер`;
-                            document.getElementById('cover-capacity').innerText = `Емкость контейнера: Без потерь`;
+                            document.getElementById('cover-dimensions').innerText = `Audio Container`;
+                            document.getElementById('cover-capacity').innerText = `Емкость контейнера: Без ограничений`;
                             
                             document.querySelector('input[name="stego-method"][value="container"]').checked = true;
                             document.querySelector('input[name="stego-method"][value="lsb"]').disabled = true;
                             toggleStegoMethod();
 
-                            addLog(`Носитель изменен: ${file.name} (Аудио). Включение структурного сокрытия.`, 'info');
+                            addLog(`Носитель изменен: ${file.name} (Аудио). Включен структурный метод.`, 'info');
                         } else {
-                            document.getElementById('cover-dimensions').innerText = `Файл общего формата`;
+                            document.getElementById('cover-dimensions').innerText = `Контейнер общего формата`;
                             document.getElementById('cover-capacity').innerText = `Емкость контейнера: Без ограничений`;
                             document.querySelector('input[name="stego-method"][value="container"]').checked = true;
                             document.querySelector('input[name="stego-method"][value="lsb"]').disabled = true;
